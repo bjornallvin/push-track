@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -12,13 +12,14 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Challenge Tracker - Daily Fitness Challenge Tracker",
   description: "Track your daily fitness activities and build lasting habits with custom multi-activity challenges",
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 5,
-  },
-  themeColor: "#3b82f6",
   manifest: "/manifest.json",
+}
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: "#3b82f6",
 }
 
 export default function RootLayout({
