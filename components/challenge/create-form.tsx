@@ -69,32 +69,39 @@ export function ChallengeForm() {
   }
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader>
-        <CardTitle>Start New Challenge</CardTitle>
-        <CardDescription>
-          Choose how many days you want to track your pushup progress
+    <Card className="w-full max-w-md border-2 shadow-lg">
+      <CardHeader className="space-y-3">
+        <CardTitle className="text-2xl">Start Your Challenge</CardTitle>
+        <CardDescription className="text-base">
+          Commit to doing <span className="font-semibold text-foreground">one set of maximum pushups</span> every day
         </CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <div className="bg-muted/50 rounded-lg p-4 text-sm space-y-2">
+              <p className="font-medium">💪 The Challenge</p>
+              <p className="text-muted-foreground">
+                Each day, do as many pushups as you can in one continuous set. Log your max number and watch your strength grow over time.
+              </p>
+            </div>
+
             <FormField
               control={form.control}
               name="duration"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Challenge Duration (days)</FormLabel>
+                  <FormLabel className="text-base">How many days?</FormLabel>
                   <FormControl>
                     <Input
                       type="number"
                       placeholder="30"
                       {...field}
-                      className="h-11" // Touch target compliance
+                      className="h-12 text-lg" // Touch target compliance
                     />
                   </FormControl>
                   <FormDescription>
-                    Enter a number between 1 and 365 days
+                    Choose between 1 and 365 days
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -109,7 +116,8 @@ export function ChallengeForm() {
 
             <Button
               type="submit"
-              className="w-full"
+              className="w-full h-12 text-base font-semibold"
+              size="lg"
               disabled={isLoading}
             >
               {isLoading ? 'Creating...' : 'Start Challenge'}

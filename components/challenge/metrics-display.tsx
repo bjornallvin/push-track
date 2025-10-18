@@ -19,63 +19,69 @@ export function MetricsDisplay({
 }: MetricsDisplayProps) {
   return (
     <div className="grid grid-cols-2 gap-4">
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Current Day
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">
-            {currentDay} / {duration}
+      <Card className="border-muted">
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-2xl">📅</div>
+            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Current Day
+            </div>
+          </div>
+          <div className="text-3xl font-bold">
+            {currentDay} <span className="text-muted-foreground text-xl">/ {duration}</span>
           </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Streak
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{streak} days</div>
+      <Card className="border-muted">
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-2xl">🔥</div>
+            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Streak
+            </div>
+          </div>
+          <div className="text-3xl font-bold">
+            {streak} <span className="text-muted-foreground text-xl">days</span>
+          </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Personal Best
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{personalBest}</div>
+      <Card className="border-muted">
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-2xl">🏆</div>
+            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Personal Best
+            </div>
+          </div>
+          <div className="text-3xl font-bold">{personalBest}</div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Total Pushups
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{totalPushups}</div>
+      <Card className="border-muted">
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-2xl">💯</div>
+            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Total
+            </div>
+          </div>
+          <div className="text-3xl font-bold">{totalPushups}</div>
         </CardContent>
       </Card>
 
-      <Card className="col-span-2">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Completion Rate
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{completionRate}%</div>
-          <div className="mt-2 h-2 w-full rounded-full bg-secondary">
+      <Card className="col-span-2 border-muted bg-gradient-to-br from-primary/5 to-primary/10">
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Completion Rate
+            </div>
+            <div className="text-2xl font-bold text-primary">{completionRate}%</div>
+          </div>
+          <div className="h-3 w-full rounded-full bg-secondary overflow-hidden">
             <div
-              className="h-2 rounded-full bg-primary transition-all"
+              className="h-3 rounded-full bg-gradient-to-r from-primary to-primary/80 transition-all duration-500"
               style={{ width: `${completionRate}%` }}
             />
           </div>

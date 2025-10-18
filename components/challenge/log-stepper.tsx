@@ -60,14 +60,20 @@ export function LogStepper({ challengeId, defaultValue = 0 }: LogStepperProps) {
   }
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader>
-        <CardTitle>Log Today&apos;s Pushups</CardTitle>
-        <CardDescription>
-          Use the stepper to set your pushup count for today
+    <Card className="w-full max-w-md border-2 shadow-lg">
+      <CardHeader className="space-y-3">
+        <CardTitle className="text-2xl">Log Today&apos;s Maximum</CardTitle>
+        <CardDescription className="text-base">
+          How many pushups did you do in your <span className="font-semibold text-foreground">one maximum set</span> today?
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        <div className="bg-muted/50 rounded-lg p-4 text-sm space-y-2 text-center">
+          <p className="font-medium">💡 Remember</p>
+          <p className="text-muted-foreground">
+            This is your max effort in one continuous set. Give it everything you&apos;ve got!
+          </p>
+        </div>
         <div className="flex items-center justify-center gap-4">
           <Button
             type="button"
