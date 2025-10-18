@@ -121,14 +121,13 @@ A user wants to visualize their pushup progress over time to stay motivated and 
 
 ### Measurable Outcomes
 
-- **SC-001**: Users can create a new challenge in under 20 seconds with clear, intuitive inputs on mobile
-- **SC-002**: Users can log their daily pushups in under 10 seconds from opening the app on mobile
-- **SC-003**: The progress chart loads and displays data within 2 seconds on mobile networks
-- **SC-004**: 90% of users successfully create their first challenge without encountering errors
-- **SC-005**: Users can view their complete progress history for the current challenge at any time
-- **SC-006**: The system correctly prevents duplicate entries 100% of the time when users attempt to log multiple times per day
-- **SC-007**: Visual chart clearly distinguishes between logged days and missed days at a glance on mobile screens
-- **SC-008**: All interactive elements meet minimum touch target size of 44x44 pixels for mobile usability
+- **SC-001**: Users can create a new challenge with clear, intuitive inputs on mobile
+- **SC-002**: Users can easily log their daily pushups from opening the app on mobile
+- **SC-003**: Users successfully create their first challenge without encountering errors
+- **SC-004**: Users can view their complete progress history for the current challenge at any time
+- **SC-005**: The system correctly prevents duplicate entries when users attempt to log multiple times per day
+- **SC-006**: Visual chart clearly distinguishes between logged days and missed days at a glance on mobile screens
+- **SC-007**: All interactive elements meet minimum touch target size of 44x44 pixels for mobile usability
 
 ## Assumptions
 
@@ -140,6 +139,6 @@ A user wants to visualize their pushup progress over time to stay motivated and 
 - Reasonable limits: challenge duration between 1-365 days, daily pushup count between 0-10000
 - The app is designed for individual use, not team/group challenges
 - Users access the app primarily via mobile web browsers (mobile-first design with desktop as secondary)
-- No user authentication required for MVP (single-user per browser/session)
+- No user authentication required for MVP (URL-based challenge access)
 - Data persistence should survive browser refreshes and return visits
 - The focus is on habit formation (daily logging) rather than achieving specific performance targets

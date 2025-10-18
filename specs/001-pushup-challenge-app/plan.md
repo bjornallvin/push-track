@@ -9,22 +9,15 @@
 
 A mobile-first web application for tracking daily pushup performance over a user-defined challenge period. Users create challenges by setting a duration, log their daily pushup counts using a stepper interface (defaulting to yesterday's count), and visualize progress via a vertical bar chart. The app focuses on habit formation (daily logging consistency) rather than performance targets, with key metrics being current day, streak count (non-zero days only), and personal best.
 
-Technical approach: Next.js 14+ with App Router for server-side rendering and mobile optimization, Tailwind CSS + shadcn/ui for touch-friendly mobile UI, Redis for fast session-based storage (no authentication), TypeScript for type safety, and Recharts for responsive bar chart visualization. Deployed on Vercel with edge functions for low-latency mobile access.
+Technical approach: Next.js 14+ with App Router for server-side rendering and mobile optimization, Tailwind CSS + shadcn/ui for touch-friendly mobile UI, Redis for fast session-based storage (no authentication), TypeScript for type safety, and Chart.js for responsive bar chart visualization. Deployed on Vercel with serverless functions for low-latency mobile access.
 
 ## Technical Context
 
 **Language/Version**: TypeScript 5.x with Next.js 14+ (App Router)
-**Primary Dependencies**: Next.js 14+, React 18+, Tailwind CSS 3.x, shadcn/ui, Recharts 2.x, Upstash Redis (serverless)
-**Storage**: Redis (Upstash for Vercel compatibility) - session-based key-value storage, no persistent database required for MVP
-**Testing**: Vitest for unit tests, Playwright for mobile-first E2E testing
+**Primary Dependencies**: Next.js 14+, React 18+, Tailwind CSS 3.x, shadcn/ui, Chart.js 4.x, redis (standard package)
+**Storage**: Redis (standard package) - session-based key-value storage, no persistent database required for MVP
 **Target Platform**: Mobile-first web (iOS Safari, Chrome Mobile), progressive web app capabilities, desktop as secondary
 **Project Type**: Web application (Next.js full-stack with API routes)
-**Performance Goals**:
-- Challenge creation: <20 seconds (SC-001)
-- Daily logging: <10 seconds (SC-002)
-- Chart rendering: <2 seconds on mobile networks (SC-003)
-- First Contentful Paint: <1.5s on 3G
-- Touch interaction latency: <100ms
 
 **Constraints**:
 - All interactive elements minimum 44x44px touch targets (SC-008)
@@ -50,11 +43,9 @@ Technical approach: Next.js 14+ with App Router for server-side rendering and mo
 **Note**: This is the first feature in the repository. The constitution file is currently a template. This implementation will establish the foundational patterns and principles for the project.
 
 **Recommended Constitution Principles** (to be formalized):
-1. **Mobile-First**: All features must be designed and tested for mobile before desktop
+1. **Mobile-First**: All features must be designed for mobile before desktop
 2. **Simplicity**: Prefer standard patterns over custom abstractions (Next.js conventions, shadcn/ui defaults)
 3. **Type Safety**: TypeScript strict mode required, no `any` types without justification
-4. **Performance**: Mobile performance targets are non-negotiable (see Technical Context)
-5. **Testing**: Component tests for UI, E2E tests for critical flows (P1-P2 user stories)
 
 ## Project Structure
 
@@ -92,14 +83,12 @@ app/
 │       └── complete/
 │           └── page.tsx         # Completion summary screen
 ├── api/
-│   ├── challenge/
-│   │   ├── route.ts             # POST /api/challenge (create), GET /api/challenge (get active)
-│   │   └── [id]/
-│   │       ├── route.ts         # GET /api/challenge/[id], DELETE /api/challenge/[id] (abandon)
-│   │       └── log/
-│   │           └── route.ts     # POST /api/challenge/[id]/log, GET /api/challenge/[id]/log
-│   └── session/
-│       └── route.ts             # Session management (Redis session ID)
+│   └── challenge/
+│       ├── route.ts             # POST /api/challenge (create, returns challengeId)
+│       └── [id]/
+│           ├── route.ts         # GET /api/challenge/[id], DELETE /api/challenge/[id] (abandon)
+│           └── log/
+│               └── route.ts     # POST /api/challenge/[id]/log, GET /api/challenge/[id]/log
 └── globals.css                   # Tailwind imports
 
 components/
@@ -120,38 +109,21 @@ components/
     └── header.tsx               # App header
 
 lib/
-├── redis.ts                     # Upstash Redis client setup
-├── session.ts                   # Session management utilities
+├── redis.ts                     # Redis client setup
 ├── challenge/
 │   ├── types.ts                 # Challenge, DailyLog, ProgressMetrics types
 │   ├── validation.ts            # Zod schemas for validation
 │   ├── calculator.ts            # Streak, completion rate, metrics calculations
 │   └── repository.ts            # Redis data access layer (CRUD operations)
-└── utils.ts                     # Date utilities, formatters
-
-tests/
-├── unit/
-│   ├── challenge/
-│   │   ├── validation.test.ts
-│   │   └── calculator.test.ts
-│   └── utils.test.ts
-├── integration/
-│   └── api/
-│       └── challenge.test.ts    # API route integration tests
-└── e2e/
-    ├── create-challenge.spec.ts # P1 user story
-    ├── log-daily.spec.ts        # P2 user story
-    └── view-progress.spec.ts    # P3 user story
+└── utils.ts                     # Date utilities, formatters, timezone detection
 
 public/
 └── icons/                       # PWA icons for mobile
 
-.env.local                       # Redis connection string (Upstash)
+.env                             # Redis connection string (REDIS_URL)
 next.config.js                   # Next.js configuration
 tailwind.config.ts               # Tailwind + shadcn theme
 tsconfig.json                    # TypeScript strict configuration
-vitest.config.ts                 # Vitest configuration
-playwright.config.ts             # Playwright mobile-first configuration
 ```
 
 **Structure Decision**: Next.js App Router structure selected because:
@@ -249,8 +221,6 @@ This phase is handled by the `/speckit.tasks` command, which will generate a dep
 
 ## Notes
 
-- **Mobile Testing Strategy**: Use Playwright with iPhone 12 Pro and Pixel 5 viewports, test on real devices via Vercel preview URLs
-- **Performance Monitoring**: Add Vercel Analytics for real-world mobile performance metrics
 - **Future Enhancements** (out of scope for MVP):
   - Challenge history retention
   - Multiple concurrent challenges

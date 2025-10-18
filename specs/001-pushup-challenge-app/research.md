@@ -6,98 +6,99 @@
 
 ---
 
-## 1. Next.js 14 + Upstash Redis Session Management
+## 1. Next.js 14 + Redis Data Storage
 
-### Decision: Use @upstash/redis for Edge-Compatible Session Management
+### Decision: Use Standard Redis Package with Connection Pooling
 
 **Rationale**:
-- Upstash Redis is HTTP/REST based, fully compatible with Vercel Edge Functions
-- Traditional Redis requires persistent connections incompatible with serverless
-- Built-in TypeScript support and Next.js middleware compatibility
+- Standard `redis` npm package provides full Redis feature set
+- Connection pooling handles serverless reconnections efficiently
+- Compatible with any Redis provider (local, Railway, Redis Cloud, etc.)
+- TypeScript support and Next.js API route compatibility
 
 **Implementation**:
 ```typescript
-import { Redis } from '@upstash/redis'
+import { createClient } from 'redis'
 
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
-})
+const redis = await createClient({
+  url: process.env.REDIS_URL
+}).connect()
 ```
 
 **Alternatives Rejected**:
-- Traditional Redis with connection pooling: Incompatible with edge runtime
-- In-memory session storage: Not persistent across serverless invocations
-- Database-backed sessions: Slower than Redis, overkill for MVP
+- Upstash Redis (HTTP/REST): Not needed, standard Redis works fine on Vercel serverless
+- In-memory storage: Not persistent across serverless invocations
+- Database-backed storage: Slower than Redis, overkill for MVP
 
 ---
 
-### Session ID Strategy: HttpOnly, Secure Cookies
+### Authentication Strategy: URL-Based Challenge ID
 
-**Decision**: Use HttpOnly, Secure cookie-based session IDs
+**Decision**: Use challenge ID in URL as authentication token
 
 **Rationale**:
-- HttpOnly prevents XSS access, Secure flag ensures HTTPS-only
-- Modern mobile browsers fully support cookies
-- No URL pollution, works with bookmarking/sharing
-- SameSite protection prevents CSRF
+- Simplest possible authentication - no cookies, no sessions
+- Shareable URLs - users can bookmark or share their challenge
+- Stateless - no session management needed
+- Mobile-friendly - works across all browsers and contexts
 
 **Implementation**:
 ```typescript
-import { cookies } from 'next/headers'
+// Challenge creation returns random ID
+const challengeId = crypto.randomUUID() // or custom random string
 
-cookies().set('session_id', sessionId, {
-  httpOnly: true,
-  secure: true,
-  sameSite: 'strict',
-  maxAge: 60 * 60 * 24 * 365, // 365 days
-  path: '/',
-})
+// URLs include the challenge ID
+// /challenge/abc123-def456
+// /challenge/abc123-def456/log
+// /challenge/abc123-def456/progress
+
+// Redis keys use challenge ID directly
+const challenge = await redis.hgetall(`challenge:${challengeId}`)
 ```
 
-**Alternatives Rejected**:
-- URL-based session IDs: Security risk (leaked in logs, analytics)
-- localStorage + custom headers: More complex, no HttpOnly protection
-- sessionStorage: Lost when tab closes
+**Security Considerations**:
+- Challenge ID must be cryptographically random (UUID v4 = 122 bits entropy)
+- URLs may leak in browser history, referrer headers, analytics
+- Trade-off: Simplicity vs. full security (acceptable for non-sensitive fitness data)
+- Users should not share URLs if they want privacy
 
-**Gotchas**:
-- Mobile Safari has aggressive cookie deletion - use long maxAge
-- Cookie size limit ~4KB - store only session ID
+**Alternatives Rejected**:
+- Cookie-based sessions: More complex, not shareable
+- JWT tokens: Overkill for this use case
+- Username/password: Adds friction, violates "no authentication" requirement
 
 ---
 
-### TTL Strategy: Tiered Approach (30/90/365 Days)
+### TTL Strategy: Challenge Duration + Grace Period
 
-**Decision**: Implement tiered TTL based on activity
+**Decision**: TTL based on challenge duration plus grace period
 
 **Rationale**:
-- Active sessions (last activity < 7 days): 30-day TTL, refreshed on interaction
-- Dormant sessions (7-90 days): 90-day TTL, no auto-refresh
-- Abandoned sessions (>90 days): 365-day TTL, then auto-delete
-- Balances storage costs with user retention
+- Challenge lifespan is predictable (user sets duration 1-365 days)
+- Keep data available for some time after completion for review
+- Simple, deterministic cleanup - no activity tracking needed
 
 **Implementation**:
 ```typescript
-const ACTIVITY_TIERS = {
-  active: 60 * 60 * 24 * 30,     // 30 days
-  dormant: 60 * 60 * 24 * 90,    // 90 days
-  abandoned: 60 * 60 * 24 * 365, // 365 days
-}
+async function createChallenge(duration: number) {
+  const challengeId = crypto.randomUUID()
+  const gracePeriodDays = 30 // Keep data 30 days after challenge ends
 
-async function refreshSessionTTL(sessionId: string, lastActivity: Date) {
-  const daysSinceActivity = (Date.now() - lastActivity.getTime()) / (1000 * 60 * 60 * 24)
+  // TTL = duration + grace period (in seconds)
+  const ttlSeconds = (duration + gracePeriodDays) * 24 * 60 * 60
 
-  let ttl = ACTIVITY_TIERS.abandoned
-  if (daysSinceActivity < 7) ttl = ACTIVITY_TIERS.active
-  else if (daysSinceActivity < 90) ttl = ACTIVITY_TIERS.dormant
+  await redis.hset(`challenge:${challengeId}`, challenge)
+  await redis.expire(`challenge:${challengeId}`, ttlSeconds)
+  await redis.expire(`challenge:${challengeId}:logs`, ttlSeconds)
+  await redis.expire(`challenge:${challengeId}:metrics`, ttlSeconds)
 
-  await redis.expire(`session:${sessionId}`, ttl)
+  return challengeId
 }
 ```
 
 **Alternatives Rejected**:
-- Fixed 365-day TTL: Wastes storage on abandoned sessions
-- Aggressive 30-day TTL: Users may lose long-term challenge data
+- Activity-based TTL: More complex, requires tracking lastActivity
+- Fixed long TTL (365 days): Wastes storage on short challenges
 - No expiration: Unbounded storage costs
 
 ---
@@ -582,9 +583,9 @@ async function onSubmit(values) {
 
 | Decision Point | Recommendation | Key Reason |
 |----------------|----------------|------------|
-| Session Storage | Upstash Redis | Edge-compatible, serverless |
-| Session ID | HttpOnly Cookie | Security, mobile compatibility |
-| Session TTL | Tiered (30/90/365 days) | Balance retention & cost |
+| Data Storage | Standard Redis | Full feature set, any provider |
+| Authentication | URL-based Challenge ID | Simple, shareable, stateless |
+| Data TTL | Duration + 30 day grace | Predictable, deterministic cleanup |
 | JS Bundle | Server Components + dynamic imports | Minimal client JS |
 | CSS Strategy | cssChunking + Tailwind | Per-route delivery |
 | FCP Target | <1.5s on 3G | Streaming + inlined CSS |

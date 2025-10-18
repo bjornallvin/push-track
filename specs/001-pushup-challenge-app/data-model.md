@@ -1,108 +1,69 @@
 # Data Model: Pushup Challenge Tracker
 
 **Date**: 2025-10-18
-**Storage**: Redis (Upstash)
-**Session-Based**: No authentication, single challenge per session
+**Storage**: Redis (standard redis package)
+**Authentication**: URL-based via challenge ID
 
 ---
 
 ## Overview
 
-The data model uses Redis key-value store with session-based isolation. Each browser session has a unique session ID stored in an HttpOnly cookie. Data is organized using Redis data structures optimized for our access patterns.
+The data model uses Redis key-value store with challenge ID-based isolation. Each challenge has a cryptographically random UUID that serves as both the primary key and authentication token. The challenge ID is embedded in URLs (e.g., `/challenge/{id}`), making challenges shareable and bookmarkable. Data is organized using Redis data structures optimized for our access patterns.
 
 ---
 
 ## Redis Key Structure
 
 ```
-session:{sessionId}                     → Hash: Session metadata
-session:{sessionId}:challenge           → Hash: Active challenge
-session:{sessionId}:logs                → Sorted Set: Daily logs (sorted by date)
-session:{sessionId}:metrics             → Hash: Cached metrics
+challenge:{challengeId}                 → Hash: Challenge metadata
+challenge:{challengeId}:logs            → Sorted Set: Daily logs (sorted by date)
+challenge:{challengeId}:metrics         → Hash: Cached metrics
 ```
 
 ---
 
 ## Entity Definitions
 
-### 1. Session
-
-**Purpose**: Track session metadata and activity for TTL management
-
-**Redis Structure**: Hash
-**Key**: `session:{sessionId}`
-**TTL**: Tiered (30/90/365 days based on activity)
-
-**Fields**:
-```typescript
-interface Session {
-  id: string              // Session UUID
-  createdAt: number       // Unix timestamp (ms)
-  lastActivity: number    // Unix timestamp (ms)
-  timezone: string        // IANA timezone (e.g., "America/New_York")
-}
-```
-
-**Redis Representation**:
-```redis
-HSET session:abc123 id "abc123"
-HSET session:abc123 createdAt "1710518400000"
-HSET session:abc123 lastActivity "1710604800000"
-HSET session:abc123 timezone "America/New_York"
-EXPIRE session:abc123 2592000  # 30 days
-```
-
-**Validation Rules**:
-- `id`: UUID v4 format
-- `createdAt`: Must be <= current time
-- `lastActivity`: Must be >= createdAt
-- `timezone`: Must be valid IANA timezone
-
-**Access Patterns**:
-- Create on first visit
-- Read on every request (check expiration)
-- Update `lastActivity` on every write operation
-- Delete on TTL expiration
-
----
-
-### 2. Challenge
+### 1. Challenge
 
 **Purpose**: Store challenge configuration and status
 
 **Redis Structure**: Hash
-**Key**: `session:{sessionId}:challenge`
-**TTL**: Inherits from session TTL
+**Key**: `challenge:{challengeId}`
+**TTL**: Challenge duration + 30 days grace period
 
 **Fields**:
 ```typescript
 interface Challenge {
-  id: string              // Challenge UUID
-  sessionId: string       // Parent session ID
+  id: string              // Challenge UUID (also used in URL)
   duration: number        // Challenge length in days (1-365)
   startDate: string       // YYYY-MM-DD in user's local timezone
   status: 'active' | 'completed' | 'abandoned'
   createdAt: number       // Unix timestamp (ms)
   completedAt?: number    // Unix timestamp (ms), null if not completed
+  timezone: string        // IANA timezone at creation
 }
 ```
 
 **Redis Representation**:
 ```redis
-HSET session:abc123:challenge id "ch_xyz789"
-HSET session:abc123:challenge sessionId "abc123"
-HSET session:abc123:challenge duration "30"
-HSET session:abc123:challenge startDate "2024-03-15"
-HSET session:abc123:challenge status "active"
-HSET session:abc123:challenge createdAt "1710518400000"
+HSET challenge:abc123 id "abc123"
+HSET challenge:abc123 duration "30"
+HSET challenge:abc123 startDate "2024-03-15"
+HSET challenge:abc123 status "active"
+HSET challenge:abc123 createdAt "1710518400000"
+HSET challenge:abc123 timezone "America/New_York"
+EXPIRE challenge:abc123 5184000  # (30 + 30) * 24 * 60 * 60 = 60 days for 30-day challenge
 ```
 
 **Validation Rules**:
+- `id`: UUID v4 format
 - `duration`: Integer, 1-365 inclusive (FR-002)
 - `startDate`: YYYY-MM-DD format, must be valid calendar date
 - `status`: Must be one of: 'active', 'completed', 'abandoned'
 - `createdAt`: Must be <= current time
 - `completedAt`: If present, must be >= createdAt
+- `timezone`: Must be valid IANA timezone
 
 **State Transitions**:
 ```
@@ -111,22 +72,22 @@ active → abandoned  (when user explicitly abandons via FR-016)
 ```
 
 **Access Patterns**:
-- Create once per session (FR-013: only one active challenge)
-- Read on every page load (check if active challenge exists)
+- Create once, returns unique URL with challenge ID
+- Read using challenge ID from URL parameter
 - Update status when challenge completes or is abandoned
-- Delete when creating new challenge (previous challenge data not retained)
+- Auto-delete via TTL after grace period expires
 
 ---
 
-### 3. Daily Log Entry
+### 2. Daily Log Entry
 
 **Purpose**: Track daily pushup counts
 
 **Redis Structure**: Sorted Set
-**Key**: `session:{sessionId}:logs`
+**Key**: `challenge:{challengeId}:logs`
 **Score**: Unix timestamp of the log date at midnight UTC (for sorting)
 **Member**: JSON-encoded log entry
-**TTL**: Inherits from session TTL
+**TTL**: Matches parent challenge TTL (duration + 30 days)
 
 **Fields**:
 ```typescript
@@ -141,8 +102,9 @@ interface DailyLog {
 **Redis Representation**:
 ```redis
 # Sorted set: score is date as Unix timestamp, value is JSON
-ZADD session:abc123:logs 1710460800 '{"date":"2024-03-15","pushups":50,"timestamp":1710518400000,"timezone":"America/New_York"}'
-ZADD session:abc123:logs 1710547200 '{"date":"2024-03-16","pushups":55,"timestamp":1710604800000,"timezone":"America/New_York"}'
+ZADD challenge:abc123:logs 1710460800 '{"date":"2024-03-15","pushups":50,"timestamp":1710518400000,"timezone":"America/New_York"}'
+ZADD challenge:abc123:logs 1710547200 '{"date":"2024-03-16","pushups":55,"timestamp":1710604800000,"timezone":"America/New_York"}'
+EXPIRE challenge:abc123:logs 5184000  # Same TTL as parent challenge
 ```
 
 **Validation Rules**:
@@ -164,28 +126,28 @@ ZADD session:abc123:logs 1710547200 '{"date":"2024-03-16","pushups":55,"timestam
 **Query Examples**:
 ```typescript
 // Get all logs (sorted by date ascending)
-const logs = await redis.zrange('session:abc123:logs', 0, -1)
+const logs = await redis.zrange('challenge:abc123:logs', 0, -1)
 
 // Get logs for last 7 days
 const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000)
-const recentLogs = await redis.zrangebyscore('session:abc123:logs', sevenDaysAgo, Date.now())
+const recentLogs = await redis.zrangebyscore('challenge:abc123:logs', sevenDaysAgo, Date.now())
 
 // Count total logs
-const count = await redis.zcard('session:abc123:logs')
+const count = await redis.zcard('challenge:abc123:logs')
 
 // Get yesterday's log (most recent before today)
-const allLogs = await redis.zrange('session:abc123:logs', -2, -2)
+const allLogs = await redis.zrange('challenge:abc123:logs', -2, -2)
 ```
 
 ---
 
-### 4. Progress Metrics (Calculated)
+### 3. Progress Metrics (Calculated)
 
 **Purpose**: Cache calculated metrics for performance
 
 **Redis Structure**: Hash
-**Key**: `session:{sessionId}:metrics`
-**TTL**: Invalidated and recalculated on each log submission
+**Key**: `challenge:{challengeId}:metrics`
+**TTL**: Matches parent challenge TTL, invalidated and recalculated on each log submission
 
 **Fields**:
 ```typescript
@@ -203,14 +165,15 @@ interface ProgressMetrics {
 
 **Redis Representation**:
 ```redis
-HSET session:abc123:metrics currentDay "10"
-HSET session:abc123:metrics streak "7"
-HSET session:abc123:metrics personalBest "75"
-HSET session:abc123:metrics totalPushups "525"
-HSET session:abc123:metrics daysLogged "8"
-HSET session:abc123:metrics daysMissed "2"
-HSET session:abc123:metrics completionRate "80"
-HSET session:abc123:metrics calculatedAt "1710518400000"
+HSET challenge:abc123:metrics currentDay "10"
+HSET challenge:abc123:metrics streak "7"
+HSET challenge:abc123:metrics personalBest "75"
+HSET challenge:abc123:metrics totalPushups "525"
+HSET challenge:abc123:metrics daysLogged "8"
+HSET challenge:abc123:metrics daysMissed "2"
+HSET challenge:abc123:metrics completionRate "80"
+HSET challenge:abc123:metrics calculatedAt "1710518400000"
+EXPIRE challenge:abc123:metrics 5184000  # Same TTL as parent challenge
 ```
 
 **Calculation Logic**:
@@ -273,16 +236,16 @@ function calculateCompletionRate(daysLogged: number, currentDay: number): number
 ## Data Relationships
 
 ```
-Session (1) ──── (0..1) Challenge ──── (0..365) DailyLog
-   │                                        │
-   └────────────────────────────────────────┴─── (0..1) ProgressMetrics
+Challenge (1) ──── (0..365) DailyLog
+     │
+     └──────────── (0..1) ProgressMetrics
 ```
 
 **Cardinality Rules**:
-- One session can have zero or one active challenge (FR-013)
 - One challenge can have zero to 365 daily logs (max duration)
-- One session has zero or one metrics cache
+- One challenge has zero or one metrics cache
 - Metrics are derived from challenge + logs
+- Challenge ID serves as both primary key and authentication token
 
 ---
 
@@ -291,50 +254,42 @@ Session (1) ──── (0..1) Challenge ──── (0..365) DailyLog
 ### Challenge Creation Flow
 
 ```typescript
-// 1. Check no active challenge exists
-const existingChallenge = await redis.hgetall(`session:${sessionId}:challenge`)
-if (existingChallenge && existingChallenge.status === 'active') {
-  throw new Error('Active challenge already exists') // FR-013
-}
+// 1. Generate unique challenge ID
+const challengeId = crypto.randomUUID()
 
-// 2. Delete previous challenge data
-await redis.del(`session:${sessionId}:challenge`)
-await redis.del(`session:${sessionId}:logs`)
-await redis.del(`session:${sessionId}:metrics`)
+// 2. Calculate TTL (duration + 30 day grace period)
+const ttlSeconds = (duration + 30) * 24 * 60 * 60
 
-// 3. Create new challenge
+// 3. Create challenge
 const challenge: Challenge = {
-  id: crypto.randomUUID(),
-  sessionId,
+  id: challengeId,
   duration,
   startDate: getTodayLocalDate(),
   status: 'active',
   createdAt: Date.now(),
+  timezone: getUserTimezone(),
 }
 
-await redis.hset(`session:${sessionId}:challenge`, challenge)
+await redis.hset(`challenge:${challengeId}`, challenge)
+await redis.expire(`challenge:${challengeId}`, ttlSeconds)
 
-// 4. Update session activity
-await redis.hset(`session:${sessionId}`, 'lastActivity', Date.now())
-await refreshSessionTTL(sessionId)
+// 4. Return challenge ID for URL
+return challengeId // Used in: /challenge/{challengeId}
 ```
 
 ### Daily Log Submission Flow
 
 ```typescript
-// 1. Validate session exists
-const session = await redis.hgetall(`session:${sessionId}`)
-if (!session) throw new Error('Session not found')
-
-// 2. Validate active challenge exists
-const challenge = await redis.hgetall(`session:${sessionId}:challenge`)
-if (!challenge || challenge.status !== 'active') {
-  throw new Error('No active challenge')
+// 1. Validate challenge exists and is active
+const challenge = await redis.hgetall(`challenge:${challengeId}`)
+if (!challenge) throw new Error('Challenge not found')
+if (challenge.status !== 'active') {
+  throw new Error('Challenge is not active')
 }
 
-// 3. Check if already logged today (FR-005)
+// 2. Check if already logged today (FR-005)
 const today = getTodayLocalDate()
-const allLogs = await redis.zrange(`session:${sessionId}:logs`, 0, -1)
+const allLogs = await redis.zrange(`challenge:${challengeId}:logs`, 0, -1)
 const parsedLogs = allLogs.map(log => JSON.parse(log))
 const hasLoggedToday = parsedLogs.some(log => log.date === today)
 
@@ -342,10 +297,10 @@ if (hasLoggedToday) {
   throw new Error('Already logged today') // FR-005
 }
 
-// 4. Validate not retroactive (FR-006)
+// 3. Validate not retroactive (FR-006)
 // This is implicitly enforced by only allowing today's date
 
-// 5. Create log entry
+// 4. Create log entry
 const log: DailyLog = {
   date: today,
   pushups,
@@ -353,25 +308,24 @@ const log: DailyLog = {
   timezone: getUserTimezone(),
 }
 
-// 6. Insert into sorted set
+// 5. Insert into sorted set
 const dateTimestamp = new Date(today).getTime()
-await redis.zadd(`session:${sessionId}:logs`, {
+const ttlSeconds = (challenge.duration + 30) * 24 * 60 * 60
+
+await redis.zadd(`challenge:${challengeId}:logs`, {
   score: dateTimestamp,
   member: JSON.stringify(log),
 })
+await redis.expire(`challenge:${challengeId}:logs`, ttlSeconds)
 
-// 7. Recalculate metrics
-await calculateAndCacheMetrics(sessionId)
+// 6. Recalculate metrics
+await calculateAndCacheMetrics(challengeId)
 
-// 8. Update session activity
-await redis.hset(`session:${sessionId}`, 'lastActivity', Date.now())
-await refreshSessionTTL(sessionId)
-
-// 9. Check if challenge complete
-const metrics = await redis.hgetall(`session:${sessionId}:metrics`)
+// 7. Check if challenge complete
+const metrics = await redis.hgetall(`challenge:${challengeId}:metrics`)
 if (metrics.currentDay >= challenge.duration) {
-  await redis.hset(`session:${sessionId}:challenge`, 'status', 'completed')
-  await redis.hset(`session:${sessionId}:challenge`, 'completedAt', Date.now())
+  await redis.hset(`challenge:${challengeId}`, 'status', 'completed')
+  await redis.hset(`challenge:${challengeId}`, 'completedAt', Date.now())
 }
 ```
 
@@ -379,8 +333,8 @@ if (metrics.currentDay >= challenge.duration) {
 
 ```typescript
 // 1. Get challenge and metrics
-const challenge = await redis.hgetall(`session:${sessionId}:challenge`)
-const metrics = await redis.hgetall(`session:${sessionId}:metrics`)
+const challenge = await redis.hgetall(`challenge:${challengeId}`)
+const metrics = await redis.hgetall(`challenge:${challengeId}:metrics`)
 
 // 2. Prepare completion summary (FR-015)
 const summary = {
@@ -391,8 +345,8 @@ const summary = {
 }
 
 // 3. Update challenge status
-await redis.hset(`session:${sessionId}:challenge`, 'status', 'completed')
-await redis.hset(`session:${sessionId}:challenge`, 'completedAt', Date.now())
+await redis.hset(`challenge:${challengeId}`, 'status', 'completed')
+await redis.hset(`challenge:${challengeId}`, 'completedAt', Date.now())
 
 // 4. Return summary for display
 return summary
@@ -406,26 +360,21 @@ return summary
 // lib/challenge/repository.ts
 
 export interface ChallengeRepository {
-  // Session operations
-  createSession(timezone: string): Promise<Session>
-  getSession(sessionId: string): Promise<Session | null>
-  updateSessionActivity(sessionId: string): Promise<void>
-
   // Challenge operations
-  createChallenge(sessionId: string, duration: number): Promise<Challenge>
-  getActiveChallenge(sessionId: string): Promise<Challenge | null>
-  abandonChallenge(sessionId: string): Promise<void>
-  completeChallenge(sessionId: string): Promise<void>
+  createChallenge(duration: number, timezone: string): Promise<string> // Returns challengeId
+  getChallenge(challengeId: string): Promise<Challenge | null>
+  abandonChallenge(challengeId: string): Promise<void>
+  completeChallenge(challengeId: string): Promise<void>
 
   // Log operations
-  logPushups(sessionId: string, pushups: number): Promise<DailyLog>
-  canLogToday(sessionId: string): Promise<boolean>
-  getAllLogs(sessionId: string): Promise<DailyLog[]>
-  getYesterdayLog(sessionId: string): Promise<DailyLog | null>
+  logPushups(challengeId: string, pushups: number): Promise<DailyLog>
+  canLogToday(challengeId: string): Promise<boolean>
+  getAllLogs(challengeId: string): Promise<DailyLog[]>
+  getYesterdayLog(challengeId: string): Promise<DailyLog | null>
 
   // Metrics operations
-  getMetrics(sessionId: string): Promise<ProgressMetrics>
-  calculateMetrics(sessionId: string): Promise<ProgressMetrics>
+  getMetrics(challengeId: string): Promise<ProgressMetrics>
+  calculateMetrics(challengeId: string): Promise<ProgressMetrics>
 }
 ```
 
@@ -441,12 +390,12 @@ import { z } from 'zod'
 
 export const ChallengeSchema = z.object({
   id: z.string().uuid(),
-  sessionId: z.string().uuid(),
   duration: z.number().int().min(1).max(365),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   status: z.enum(['active', 'completed', 'abandoned']),
   createdAt: z.number().int().positive(),
   completedAt: z.number().int().positive().optional(),
+  timezone: z.string().min(1),
 })
 
 export const DailyLogSchema = z.object({
@@ -456,12 +405,6 @@ export const DailyLogSchema = z.object({
   timezone: z.string().min(1),
 })
 
-export const SessionSchema = z.object({
-  id: z.string().uuid(),
-  createdAt: z.number().int().positive(),
-  lastActivity: z.number().int().positive(),
-  timezone: z.string().min(1),
-})
 ```
 
 ---
@@ -470,13 +413,14 @@ export const SessionSchema = z.object({
 
 1. **Sorted Sets for Logs**: O(log N) insertion, O(1) range queries
 2. **Metrics Caching**: Avoid recalculating on every read
-3. **TTL Management**: Automatic cleanup prevents storage bloat
+3. **TTL Management**: Automatic cleanup prevents storage bloat (duration + 30 days)
 4. **Pipelining**: Batch Redis commands when possible:
    ```typescript
    const pipeline = redis.pipeline()
-   pipeline.hset(`session:${sessionId}`, 'lastActivity', Date.now())
-   pipeline.zadd(`session:${sessionId}:logs`, { score, member })
-   pipeline.hset(`session:${sessionId}:metrics`, metrics)
+   pipeline.zadd(`challenge:${challengeId}:logs`, { score, member })
+   pipeline.expire(`challenge:${challengeId}:logs`, ttlSeconds)
+   pipeline.hset(`challenge:${challengeId}:metrics`, metrics)
+   pipeline.expire(`challenge:${challengeId}:metrics`, ttlSeconds)
    await pipeline.exec()
    ```
 
@@ -484,20 +428,20 @@ export const SessionSchema = z.object({
 
 ## Migration Strategy
 
-Since this is the first version and Redis is ephemeral (session-based), no migration is needed. Future schema changes:
+Since this is the first version and Redis keys are TTL-based (auto-expire), no migration is needed. Future schema changes:
 
-1. **Add new optional field**: Backwards compatible, old sessions work
+1. **Add new optional field**: Backwards compatible, old challenges work
 2. **Remove field**: Backwards compatible, ignored if missing
 3. **Rename field**: Breaking change, requires version flag:
    ```typescript
-   const schemaVersion = await redis.hget(`session:${sessionId}`, 'schemaVersion')
+   const schemaVersion = await redis.hget(`challenge:${challengeId}`, 'schemaVersion')
    if (schemaVersion === '1') {
      // Old schema handling
    } else {
      // New schema handling
    }
    ```
-4. **Change data structure**: Create new keys, deprecate old ones over TTL period
+4. **Change data structure**: Create new key patterns, old ones expire naturally via TTL
 
 ---
 
