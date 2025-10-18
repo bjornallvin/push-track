@@ -1,6 +1,10 @@
-import { Resend } from 'resend'
+import * as brevo from '@getbrevo/brevo'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+const apiInstance = new brevo.TransactionalEmailsApi()
+apiInstance.setApiKey(
+  brevo.TransactionalEmailsApiApiKeys.apiKey,
+  process.env.BREVO_API_KEY || ''
+)
 
 export interface SendChallengeEmailParams {
   to: string
@@ -98,17 +102,18 @@ export async function sendChallengeEmail({
     `
 
   try {
-    const { data, error } = await resend.emails.send({
-      from: 'Push Track <onboarding@resend.dev>', // You'll need to update this with your verified domain
-      to: [to],
-      subject,
-      html,
-    })
+    const sendSmtpEmail = new brevo.SendSmtpEmail()
 
-    if (error) {
-      console.error('Error sending email:', error)
-      throw new Error('Failed to send email')
+    sendSmtpEmail.sender = {
+      email: process.env.BREVO_FROM_EMAIL || 'noreply@example.com',
+      name: process.env.BREVO_FROM_NAME || 'Push Track',
     }
+
+    sendSmtpEmail.to = [{ email: to }]
+    sendSmtpEmail.subject = subject
+    sendSmtpEmail.htmlContent = html
+
+    const data = await apiInstance.sendTransacEmail(sendSmtpEmail)
 
     return { success: true, data }
   } catch (error) {

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="32" cy="32" r="32" fill="url(#gradient)"/>
+
+  <!-- Bold "P" for Push -->
+  <path d="M 20 18 L 36 18 Q 46 18 46 28 Q 46 38 36 38 L 28 38 L 28 46 L 20 46 Z M 28 26 L 28 30 L 34 30 Q 38 30 38 28 Q 38 26 34 26 Z" fill="#ffffff"/>
+</svg>

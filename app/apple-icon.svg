@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180">
+  <defs>
+    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background rounded square (iOS style) -->
+  <rect width="180" height="180" rx="40" fill="url(#gradient)"/>
+
+  <!-- Bold "P" for Push - scaled up for 180x180 -->
+  <path d="M 56 50 L 101 50 Q 129 50 129 79 Q 129 107 101 107 L 79 107 L 79 130 L 56 130 Z M 79 73 L 79 84 L 96 84 Q 107 84 107 79 Q 107 73 96 73 Z" fill="#ffffff"/>
+</svg>
