@@ -60,17 +60,17 @@ export function LogStepper({ challengeId, defaultValue = 0 }: LogStepperProps) {
   }
 
   return (
-    <Card className="w-full max-w-md border-2 shadow-lg">
+    <Card className="w-full max-w-md border-2 border-emerald-200 dark:border-emerald-800 shadow-2xl shadow-emerald-500/20 bg-gradient-to-br from-white to-emerald-50/50 dark:from-gray-950 dark:to-emerald-950/30">
       <CardHeader className="space-y-3">
-        <CardTitle className="text-2xl">Log Today&apos;s Maximum</CardTitle>
-        <CardDescription className="text-base">
-          How many pushups did you do in your <span className="font-semibold text-foreground">one maximum set</span> today?
+        <CardTitle className="text-2xl bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">Log Today&apos;s Maximum</CardTitle>
+        <CardDescription className="text-base text-gray-700 dark:text-gray-300">
+          How many pushups did you do in your <span className="font-bold text-emerald-600 dark:text-emerald-400">one maximum set</span> today?
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="bg-muted/50 rounded-lg p-4 text-sm space-y-2 text-center">
-          <p className="font-medium">💡 Remember</p>
-          <p className="text-muted-foreground">
+        <div className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border-2 border-amber-200 dark:border-amber-800 rounded-lg p-4 text-sm space-y-2 text-center">
+          <p className="font-semibold text-amber-900 dark:text-amber-100">💡 Remember</p>
+          <p className="text-amber-700 dark:text-amber-300">
             This is your max effort in one continuous set. Give it everything you&apos;ve got!
           </p>
         </div>
@@ -117,11 +117,11 @@ export function LogStepper({ challengeId, defaultValue = 0 }: LogStepperProps) {
 
         <Button
           onClick={handleSubmit}
-          className="w-full"
+          className="w-full bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 hover:from-emerald-700 hover:via-teal-700 hover:to-emerald-700 shadow-lg hover:shadow-xl transition-all"
           size="lg"
           disabled={isLoading || success}
         >
-          {isLoading ? 'Logging...' : 'Log Pushups'}
+          {isLoading ? '⏳ Logging...' : '✅ Log Pushups'}
         </Button>
       </CardContent>
     </Card>
