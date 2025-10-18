@@ -50,6 +50,8 @@ export default async function ProgressPage({
           startDate={data.challenge.startDate}
           duration={data.challenge.duration}
           currentDay={data.challenge.currentDay}
+          activities={data.challenge.activities}
+          activityUnits={data.challenge.activityUnits}
         />
       </div>
     </main>

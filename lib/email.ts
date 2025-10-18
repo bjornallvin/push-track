@@ -10,6 +10,7 @@ export interface SendChallengeEmailParams {
   to: string
   challengeId: string
   duration: number
+  activities: string[]
   isNew: boolean // true for new challenges, false for "forgot link"
 }
 
@@ -17,13 +18,21 @@ export async function sendChallengeEmail({
   to,
   challengeId,
   duration,
+  activities,
   isNew,
 }: SendChallengeEmailParams) {
   const challengeUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/challenge/${challengeId}`
 
+  // Generate activity list text
+  const activityText = activities.length === 1
+    ? activities[0]
+    : activities.length === 2
+    ? `${activities[0]} and ${activities[1]}`
+    : `${activities.slice(0, -1).join(', ')}, and ${activities[activities.length - 1]}`
+
   const subject = isNew
-    ? '💪 Your Pushup Challenge Has Started!'
-    : '💪 Here\'s Your Pushup Challenge Link'
+    ? '💪 Your Challenge Has Started!'
+    : '💪 Here\'s Your Challenge Link'
 
   const html = isNew
     ? `
@@ -40,9 +49,11 @@ export async function sendChallengeEmail({
           </div>
 
           <div style="background: #f7f7f7; padding: 30px; border-radius: 0 0 10px 10px;">
-            <p style="font-size: 18px; margin-bottom: 20px;">You've just started your <strong>${duration}-day pushup challenge</strong>!</p>
+            <p style="font-size: 18px; margin-bottom: 20px;">You've just started your <strong>${duration}-day challenge</strong>!</p>
 
-            <p style="margin-bottom: 20px;">Every day, do one set of maximum pushups and track your progress. Watch your strength grow over time!</p>
+            <p style="margin-bottom: 20px;"><strong>Your activities:</strong> ${activityText}</p>
+
+            <p style="margin-bottom: 20px;">Every day, log your maximum reps for each activity and track your progress. Watch your strength grow over time!</p>
 
             <div style="background: white; border-left: 4px solid #667eea; padding: 15px; margin: 20px 0;">
               <p style="margin: 0; font-weight: bold; color: #667eea;">📌 Save this link:</p>
@@ -78,7 +89,7 @@ export async function sendChallengeEmail({
           </div>
 
           <div style="background: #f7f7f7; padding: 30px; border-radius: 0 0 10px 10px;">
-            <p style="font-size: 18px; margin-bottom: 20px;">Here's the link to your <strong>${duration}-day pushup challenge</strong>:</p>
+            <p style="font-size: 18px; margin-bottom: 20px;">Here's the link to your <strong>${duration}-day challenge</strong> (${activityText}):</p>
 
             <div style="background: white; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0;">
               <p style="margin: 0; font-weight: bold; color: #10b981;">📌 Your Challenge:</p>
@@ -106,7 +117,7 @@ export async function sendChallengeEmail({
 
     sendSmtpEmail.sender = {
       email: process.env.BREVO_FROM_EMAIL || 'noreply@example.com',
-      name: process.env.BREVO_FROM_NAME || 'Push Track',
+      name: process.env.BREVO_FROM_NAME || 'Challenge Tracker',
     }
 
     sendSmtpEmail.to = [{ email: to }]

@@ -21,7 +21,7 @@ async function getCompletionSummary(id: string) {
       return null
     }
 
-    // Get logs for best day calculation
+    // Get logs for best day calculation per activity
     const logsResponse = await fetch(`${baseUrl}/api/challenge/${id}/log`, {
       cache: 'no-store',
     })
@@ -33,20 +33,34 @@ async function getCompletionSummary(id: string) {
     const logsData = await logsResponse.json()
     const logs = logsData.data.logs
 
-    // Find best day
-    const bestLog = logs.reduce(
-      (best: any, log: any) => (log.pushups > best.pushups ? log : best),
-      logs[0] || { date: challenge.startDate, pushups: 0 }
-    )
+    // Calculate per-activity stats
+    const activityStats: Record<string, { totalReps: number; bestDay: { date: string; reps: number }; finalStreak: number; completionRate: number }> = {}
+
+    for (const activity of challenge.activities) {
+      const activityLogs = logs.filter((log: any) => log.activity === activity)
+      const metrics = challenge.activityMetrics[activity]
+
+      // Find best day for this activity
+      const bestLog = activityLogs.reduce(
+        (best: any, log: any) => ((log.reps ?? log.pushups ?? 0) > (best.reps ?? best.pushups ?? 0) ? log : best),
+        activityLogs[0] || { date: challenge.startDate, reps: 0 }
+      )
+
+      activityStats[activity] = {
+        totalReps: metrics.totalReps,
+        bestDay: {
+          date: bestLog.date,
+          reps: bestLog.reps ?? bestLog.pushups ?? 0,
+        },
+        finalStreak: metrics.streak,
+        completionRate: metrics.completionRate,
+      }
+    }
 
     return {
-      totalPushups: challenge.metrics.totalPushups,
-      completionRate: challenge.metrics.completionRate,
-      bestDay: {
-        date: bestLog.date,
-        pushups: bestLog.pushups,
-      },
-      finalStreak: challenge.metrics.streak,
+      activities: challenge.activities,
+      activityStats,
+      activityUnits: challenge.activityUnits || {},
       duration: challenge.duration,
       startDate: challenge.startDate,
     }

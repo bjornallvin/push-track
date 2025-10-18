@@ -1,6 +1,6 @@
 import { getRedis } from '@/lib/redis'
-import type { Challenge, DailyLog, ProgressMetrics } from './types'
-import { calculateMetrics } from './calculator'
+import type { Challenge, DailyLog, ProgressMetrics, ActivityMetrics, ActivityUnit } from './types'
+import { calculateMetrics, calculateActivityMetrics } from './calculator'
 import { getTodayLocalDate, getUserTimezone } from '@/lib/utils'
 
 /**
@@ -12,7 +12,13 @@ export class ChallengeRepository {
    * Create a new challenge
    * Returns the challenge ID (UUID)
    */
-  async createChallenge(duration: number, timezone: string, email?: string): Promise<string> {
+  async createChallenge(
+    duration: number,
+    timezone: string,
+    activities: string[],
+    activityUnits: Record<string, ActivityUnit>,
+    email?: string
+  ): Promise<string> {
     const redis = await getRedis()
     const challengeId = crypto.randomUUID()
 
@@ -23,6 +29,8 @@ export class ChallengeRepository {
       status: 'active',
       createdAt: Date.now(),
       timezone,
+      activities,
+      activityUnits,
       ...(email && { email }),
     }
 
@@ -30,15 +38,21 @@ export class ChallengeRepository {
     const gracePeriodDays = 30
     const ttlSeconds = (duration + gracePeriodDays) * 24 * 60 * 60
 
-    // Store challenge in Redis hash
-    await redis.hSet(`challenge:${challengeId}`, challenge as any)
+    // Store challenge in Redis hash (activities and activityUnits as JSON strings)
+    await redis.hSet(`challenge:${challengeId}`, {
+      ...challenge,
+      activities: JSON.stringify(activities),
+      activityUnits: JSON.stringify(activityUnits),
+    } as any)
     await redis.expire(`challenge:${challengeId}`, ttlSeconds)
 
     // Initialize empty logs sorted set
     await redis.expire(`challenge:${challengeId}:logs`, ttlSeconds)
 
-    // Initialize metrics
-    await redis.expire(`challenge:${challengeId}:metrics`, ttlSeconds)
+    // Initialize metrics hashes for each activity
+    for (const activity of activities) {
+      await redis.expire(`challenge:${challengeId}:metrics:${activity}`, ttlSeconds)
+    }
 
     return challengeId
   }
@@ -46,6 +60,7 @@ export class ChallengeRepository {
   /**
    * Get a challenge by ID
    * Returns null if not found
+   * Automatically migrates old challenges to multi-activity format
    */
   async getChallenge(challengeId: string): Promise<Challenge | null> {
     const redis = await getRedis()
@@ -53,6 +68,35 @@ export class ChallengeRepository {
 
     if (!data || Object.keys(data).length === 0) {
       return null
+    }
+
+    // Migration: Add activities field if missing (old single-activity challenges)
+    let activities: string[]
+    if (data.activities) {
+      activities = JSON.parse(data.activities)
+    } else {
+      // Old challenge - default to single "Push-ups" activity
+      activities = ['Push-ups']
+      // Persist the migration
+      await redis.hSet(`challenge:${challengeId}`, {
+        activities: JSON.stringify(activities),
+      })
+    }
+
+    // Migration: Add activityUnits field if missing (default to "reps" for all activities)
+    let activityUnits: Record<string, ActivityUnit>
+    if (data.activityUnits) {
+      activityUnits = JSON.parse(data.activityUnits)
+    } else {
+      // Old challenge - default all activities to "reps"
+      activityUnits = {}
+      for (const activity of activities) {
+        activityUnits[activity] = 'reps'
+      }
+      // Persist the migration
+      await redis.hSet(`challenge:${challengeId}`, {
+        activityUnits: JSON.stringify(activityUnits),
+      })
     }
 
     // Convert Redis string fields back to proper types
@@ -64,6 +108,9 @@ export class ChallengeRepository {
       createdAt: parseInt(data.createdAt),
       completedAt: data.completedAt ? parseInt(data.completedAt) : undefined,
       timezone: data.timezone,
+      email: data.email,
+      activities,
+      activityUnits,
     }
   }
 
@@ -95,25 +142,27 @@ export class ChallengeRepository {
   }
 
   /**
-   * Log pushups for today
-   * Throws error if already logged today
+   * Log reps for a specific activity today
+   * Throws error if already logged this activity today
    */
-  async logPushups(
+  async logReps(
     challengeId: string,
-    pushups: number
+    activity: string,
+    reps: number
   ): Promise<DailyLog> {
     const redis = await getRedis()
     const today = getTodayLocalDate()
 
-    // Check if already logged today
-    const hasLogged = await this.hasLoggedToday(challengeId)
+    // Check if already logged this activity today
+    const hasLogged = await this.hasLoggedToday(challengeId, activity)
     if (hasLogged) {
-      throw new Error('Already logged pushups for today')
+      throw new Error(`Already logged ${activity} for today`)
     }
 
     const log: DailyLog = {
       date: today,
-      pushups,
+      activity,
+      reps,
       timestamp: Date.now(),
       timezone: getUserTimezone(),
     }
@@ -138,16 +187,45 @@ export class ChallengeRepository {
   }
 
   /**
-   * Check if pushups have been logged today
+   * Log pushups for today (deprecated - use logReps instead)
+   * @deprecated Use logReps instead
    */
-  async hasLoggedToday(challengeId: string): Promise<boolean> {
+  async logPushups(
+    challengeId: string,
+    pushups: number
+  ): Promise<DailyLog> {
+    return this.logReps(challengeId, 'Push-ups', pushups)
+  }
+
+  /**
+   * Check if a specific activity has been logged today
+   */
+  async hasLoggedToday(challengeId: string, activity: string): Promise<boolean> {
     const logs = await this.getAllLogs(challengeId)
     const today = getTodayLocalDate()
-    return logs.some((log) => log.date === today)
+    return logs.some((log) => log.date === today && log.activity === activity)
+  }
+
+  /**
+   * Check if all activities have been logged today
+   */
+  async hasLoggedAllActivitiesToday(challengeId: string): Promise<boolean> {
+    const challenge = await this.getChallenge(challengeId)
+    if (!challenge) return false
+
+    const logs = await this.getAllLogs(challengeId)
+    const today = getTodayLocalDate()
+    const todayLogs = logs.filter((log) => log.date === today)
+
+    // Check if we have a log for each activity
+    return challenge.activities.every((activity) =>
+      todayLogs.some((log) => log.activity === activity)
+    )
   }
 
   /**
    * Get all logs for a challenge (sorted by date ascending)
+   * Automatically migrates old logs to multi-activity format
    */
   async getAllLogs(challengeId: string): Promise<DailyLog[]> {
     const redis = await getRedis()
@@ -157,15 +235,37 @@ export class ChallengeRepository {
       return []
     }
 
-    return results.map((item) => JSON.parse(item as string) as DailyLog)
+    return results.map((item) => {
+      const log = JSON.parse(item as string) as DailyLog
+
+      // Migration: Add activity field if missing (old logs)
+      if (!log.activity) {
+        log.activity = 'Push-ups'
+      }
+
+      // Migration: Copy pushups to reps if reps is missing
+      if (log.pushups !== undefined && log.reps === undefined) {
+        log.reps = log.pushups
+      }
+
+      return log
+    })
   }
 
   /**
-   * Get yesterday's log (for pre-filling stepper)
+   * Get logs for a specific activity
+   */
+  async getLogsForActivity(challengeId: string, activity: string): Promise<DailyLog[]> {
+    const allLogs = await this.getAllLogs(challengeId)
+    return allLogs.filter((log) => log.activity === activity)
+  }
+
+  /**
+   * Get yesterday's log for a specific activity (for pre-filling stepper)
    * Returns null if no log exists
    */
-  async getYesterdayLog(challengeId: string): Promise<DailyLog | null> {
-    const logs = await this.getAllLogs(challengeId)
+  async getYesterdayLog(challengeId: string, activity: string): Promise<DailyLog | null> {
+    const logs = await this.getLogsForActivity(challengeId, activity)
     if (logs.length === 0) return null
 
     // Sort descending and get the most recent
@@ -181,13 +281,62 @@ export class ChallengeRepository {
   }
 
   /**
-   * Get or calculate metrics for a challenge
+   * Get or calculate metrics for a specific activity
    * Caches metrics in Redis
+   */
+  async getMetricsForActivity(challengeId: string, activity: string): Promise<ActivityMetrics> {
+    const redis = await getRedis()
+
+    // Try to get cached metrics
+    const cachedData = await redis.hGetAll(`challenge:${challengeId}:metrics:${activity}`)
+
+    if (cachedData && Object.keys(cachedData).length > 0) {
+      // Return cached metrics
+      return {
+        activity: cachedData.activity,
+        currentDay: parseInt(cachedData.currentDay),
+        streak: parseInt(cachedData.streak),
+        personalBest: parseInt(cachedData.personalBest),
+        totalReps: parseInt(cachedData.totalReps),
+        daysLogged: parseInt(cachedData.daysLogged),
+        daysMissed: parseInt(cachedData.daysMissed),
+        completionRate: parseInt(cachedData.completionRate),
+        calculatedAt: parseInt(cachedData.calculatedAt),
+      }
+    }
+
+    // Calculate and cache metrics
+    return await this.calculateAndCacheMetrics(challengeId, activity)
+  }
+
+  /**
+   * Get metrics for all activities in a challenge
+   */
+  async getAllActivityMetrics(challengeId: string): Promise<Map<string, ActivityMetrics>> {
+    const challenge = await this.getChallenge(challengeId)
+    if (!challenge) {
+      throw new Error('Challenge not found')
+    }
+
+    const metricsMap = new Map<string, ActivityMetrics>()
+
+    for (const activity of challenge.activities) {
+      const metrics = await this.getMetricsForActivity(challengeId, activity)
+      metricsMap.set(activity, metrics)
+    }
+
+    return metricsMap
+  }
+
+  /**
+   * Get or calculate metrics for a challenge (backward compatible)
+   * Returns metrics for the first activity or aggregated metrics
+   * @deprecated Use getMetricsForActivity or getAllActivityMetrics instead
    */
   async getMetrics(challengeId: string): Promise<ProgressMetrics> {
     const redis = await getRedis()
 
-    // Try to get cached metrics
+    // Try to get cached metrics (old format)
     const cachedData = await redis.hGetAll(`challenge:${challengeId}:metrics`)
 
     if (cachedData && Object.keys(cachedData).length > 0) {
@@ -204,17 +353,24 @@ export class ChallengeRepository {
       }
     }
 
-    // Calculate and cache metrics
-    return await this.calculateAndCacheMetrics(challengeId)
+    // Calculate using old method for backward compatibility
+    const challenge = await this.getChallenge(challengeId)
+    if (!challenge) {
+      throw new Error('Challenge not found')
+    }
+
+    const logs = await this.getAllLogs(challengeId)
+    return calculateMetrics(challenge, logs)
   }
 
   /**
-   * Calculate metrics and cache them in Redis
-   * This is called after logging pushups or when metrics are stale
+   * Calculate metrics for a specific activity and cache them in Redis
+   * This is called after logging reps or when metrics are stale
    */
   async calculateAndCacheMetrics(
-    challengeId: string
-  ): Promise<ProgressMetrics> {
+    challengeId: string,
+    activity: string
+  ): Promise<ActivityMetrics> {
     const redis = await getRedis()
     const challenge = await this.getChallenge(challengeId)
 
@@ -223,14 +379,14 @@ export class ChallengeRepository {
     }
 
     const logs = await this.getAllLogs(challengeId)
-    const metrics = calculateMetrics(challenge, logs)
+    const metrics = calculateActivityMetrics(challenge, logs, activity)
 
     // Cache in Redis
-    await redis.hSet(`challenge:${challengeId}:metrics`, metrics as any)
+    await redis.hSet(`challenge:${challengeId}:metrics:${activity}`, metrics as any)
 
     // Set TTL to match challenge
     const ttlSeconds = (challenge.duration + 30) * 24 * 60 * 60
-    await redis.expire(`challenge:${challengeId}:metrics`, ttlSeconds)
+    await redis.expire(`challenge:${challengeId}:metrics:${activity}`, ttlSeconds)
 
     return metrics
   }

@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     const redis = await getRedis()
     const keys = await redis.keys('challenge:*')
 
-    let foundChallenges: Array<{ id: string; duration: number }> = []
+    let foundChallenges: Array<{ id: string; duration: number; activities: string[] }> = []
 
     for (const key of keys) {
       // Skip non-hash keys (like challenge:xxx:logs)
@@ -45,9 +45,14 @@ export async function POST(request: NextRequest) {
       const challengeData = await redis.hGetAll(key)
       if (challengeData.email === email) {
         const challengeId = key.replace('challenge:', '')
+        const activities = challengeData.activities
+          ? JSON.parse(challengeData.activities)
+          : ['Push-ups'] // Default for old challenges
+
         foundChallenges.push({
           id: challengeId,
           duration: parseInt(challengeData.duration),
+          activities,
         })
       }
     }
@@ -71,6 +76,7 @@ export async function POST(request: NextRequest) {
           to: email,
           challengeId: challenge.id,
           duration: challenge.duration,
+          activities: challenge.activities,
           isNew: false, // This is a "forgot link" email
         })
       } catch (error) {

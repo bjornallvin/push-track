@@ -16,7 +16,7 @@ export default function HomePage() {
             Push Your Limits
           </h1>
           <p className="text-xl text-gray-700 dark:text-gray-300 max-w-lg mx-auto leading-relaxed">
-            Challenge yourself to do <span className="font-bold text-purple-600 dark:text-purple-400">one set of maximum pushups</span> every single day. Track your progress and watch your strength grow.
+            Challenge yourself with <span className="font-bold text-purple-600 dark:text-purple-400">daily maximum-effort exercises</span>. Choose your activities, track your progress, and watch your strength grow.
           </p>
         </div>
 
@@ -46,9 +46,9 @@ export default function HomePage() {
                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-xl mb-3 shadow-lg">
                   1
                 </div>
-                <h3 className="font-semibold text-lg text-blue-900 dark:text-blue-100">Choose Duration</h3>
+                <h3 className="font-semibold text-lg text-blue-900 dark:text-blue-100">Choose Your Challenge</h3>
                 <p className="text-sm text-blue-700 dark:text-blue-300">
-                  Set your challenge length from 1 to 365 days
+                  Select 1-5 activities and set your challenge length (1-365 days)
                 </p>
               </CardContent>
             </Card>
@@ -59,7 +59,7 @@ export default function HomePage() {
                 </div>
                 <h3 className="font-semibold text-lg text-purple-900 dark:text-purple-100">Max Out Daily</h3>
                 <p className="text-sm text-purple-700 dark:text-purple-300">
-                  Do one set of maximum pushups and log your count
+                  Complete your chosen activities at maximum effort and log your reps
                 </p>
               </CardContent>
             </Card>

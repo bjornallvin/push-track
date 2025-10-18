@@ -17,6 +17,8 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { ActivitySelector } from './activity-selector'
+import type { ActivityUnit } from '@/lib/challenge/types'
 
 const formSchema = z.object({
   duration: z.coerce
@@ -25,6 +27,11 @@ const formSchema = z.object({
     .min(1, 'Challenge must be at least 1 day')
     .max(365, 'Challenge cannot exceed 365 days'),
   email: z.string().email('Please enter a valid email').optional().or(z.literal('')),
+  activities: z
+    .array(z.string())
+    .min(1, 'At least one activity is required')
+    .max(5, 'Maximum 5 activities allowed'),
+  activityUnits: z.record(z.string(), z.enum(['reps', 'minutes', 'seconds', 'km', 'miles', 'meters', 'hours'])),
 })
 
 type FormData = z.infer<typeof formSchema>
@@ -39,6 +46,8 @@ export function ChallengeForm() {
     defaultValues: {
       duration: 30,
       email: '',
+      activities: ['Push-ups'],
+      activityUnits: { 'Push-ups': 'reps' },
     },
   })
 
@@ -75,7 +84,7 @@ export function ChallengeForm() {
       <CardHeader className="space-y-3">
         <CardTitle className="text-2xl bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Start Your Challenge</CardTitle>
         <CardDescription className="text-base text-gray-700 dark:text-gray-300">
-          Commit to doing <span className="font-bold text-purple-600 dark:text-purple-400">one set of maximum pushups</span> every day
+          Track your maximum reps across <span className="font-bold text-purple-600 dark:text-purple-400">multiple activities</span> every day
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -84,9 +93,29 @@ export function ChallengeForm() {
             <div className="bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30 border-2 border-blue-200 dark:border-blue-800 rounded-lg p-4 text-sm space-y-2">
               <p className="font-semibold text-blue-900 dark:text-blue-100">💪 The Challenge</p>
               <p className="text-blue-700 dark:text-blue-300">
-                Each day, do as many pushups as you can in one continuous set. Log your max number and watch your strength grow over time.
+                Each day, do your maximum reps for each selected activity. Log your numbers and watch your strength grow over time.
               </p>
             </div>
+
+            <FormField
+              control={form.control}
+              name="activities"
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <ActivitySelector
+                      selectedActivities={field.value}
+                      activityUnits={form.getValues('activityUnits')}
+                      onChange={(activities, units) => {
+                        field.onChange(activities)
+                        form.setValue('activityUnits', units)
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { challengeRepository } from '@/lib/challenge/repository'
-import { LogPushupsRequestSchema } from '@/lib/challenge/validation'
-import type { LogPushupsResponse } from '@/lib/challenge/types'
+import { LogRepsRequestSchema } from '@/lib/challenge/validation'
+import type { LogRepsResponse } from '@/lib/challenge/types'
 
 /**
  * POST /api/challenge/[id]/log
- * Log pushups for today
+ * Log reps for all activities today
  */
 export async function POST(
   request: NextRequest,
@@ -16,12 +16,12 @@ export async function POST(
     const body = await request.json()
 
     // Validate request
-    const validation = LogPushupsRequestSchema.safeParse(body)
+    const validation = LogRepsRequestSchema.safeParse(body)
     if (!validation.success) {
       return NextResponse.json(
         {
-          error: 'INVALID_PUSHUP_COUNT',
-          message: 'Pushup count must be between 0 and 10,000',
+          error: 'INVALID_REQUEST',
+          message: 'Invalid log data',
           details: validation.error.errors,
           timestamp: Date.now(),
         },
@@ -29,7 +29,7 @@ export async function POST(
       )
     }
 
-    const { pushups } = validation.data
+    const { logs } = validation.data
 
     // Get challenge
     const challenge = await challengeRepository.getChallenge(challengeId)
@@ -49,35 +49,74 @@ export async function POST(
       return NextResponse.json(
         {
           error: 'CHALLENGE_COMPLETED',
-          message: 'Cannot log pushups for a completed challenge',
+          message: 'Cannot log reps for a completed challenge',
           timestamp: Date.now(),
         },
         { status: 403 }
       )
     }
 
-    // Log pushups
+    // Verify all challenge activities are included in the request
+    const loggedActivities = new Set(logs.map((l) => l.activity))
+    const missingActivities = challenge.activities.filter((a) => !loggedActivities.has(a))
+
+    if (missingActivities.length > 0) {
+      return NextResponse.json(
+        {
+          error: 'MISSING_ACTIVITIES',
+          message: `All activities must be logged: ${missingActivities.join(', ')}`,
+          timestamp: Date.now(),
+        },
+        { status: 400 }
+      )
+    }
+
+    // Verify no extra activities are logged
+    const extraActivities = logs.filter((l) => !challenge.activities.includes(l.activity))
+    if (extraActivities.length > 0) {
+      return NextResponse.json(
+        {
+          error: 'INVALID_ACTIVITIES',
+          message: `Invalid activities: ${extraActivities.map((l) => l.activity).join(', ')}`,
+          timestamp: Date.now(),
+        },
+        { status: 400 }
+      )
+    }
+
+    // Log reps for each activity
+    const loggedEntries: Array<{ date: string; activity: string; reps: number }> = []
+    const activityMetrics: LogRepsResponse['activityMetrics'] = {}
+
     try {
-      const log = await challengeRepository.logPushups(challengeId, pushups)
+      for (const { activity, reps } of logs) {
+        const log = await challengeRepository.logReps(challengeId, activity, reps)
+        loggedEntries.push({
+          date: log.date,
+          activity: log.activity,
+          reps: log.reps,
+        })
 
-      // Recalculate metrics
-      const metrics = await challengeRepository.calculateAndCacheMetrics(
-        challengeId
-      )
+        // Recalculate metrics for this activity
+        const metrics = await challengeRepository.calculateAndCacheMetrics(
+          challengeId,
+          activity
+        )
 
-      // Check if challenge is now complete
-      const isComplete = await challengeRepository.checkAndUpdateCompletion(
-        challengeId
-      )
-
-      const response: LogPushupsResponse = {
-        date: log.date,
-        pushups: log.pushups,
-        metrics: {
+        activityMetrics[activity] = {
           streak: metrics.streak,
           personalBest: metrics.personalBest,
+          totalReps: metrics.totalReps,
           currentDay: metrics.currentDay,
-        },
+        }
+      }
+
+      // Check if challenge is now complete
+      const isComplete = await challengeRepository.checkAndUpdateCompletion(challengeId)
+
+      const response: LogRepsResponse = {
+        logs: loggedEntries,
+        activityMetrics,
         challengeCompleted: isComplete,
       }
 
@@ -90,11 +129,11 @@ export async function POST(
         { status: 201 }
       )
     } catch (error) {
-      if (error instanceof Error && error.message === 'Already logged pushups for today') {
+      if (error instanceof Error && error.message.includes('Already logged')) {
         return NextResponse.json(
           {
             error: 'ALREADY_LOGGED_TODAY',
-            message: 'You have already logged pushups for today. Try again tomorrow!',
+            message: 'You have already logged activities for today. Try again tomorrow!',
             timestamp: Date.now(),
           },
           { status: 409 }
@@ -103,11 +142,11 @@ export async function POST(
       throw error
     }
   } catch (error) {
-    console.error('Error logging pushups:', error)
+    console.error('Error logging reps:', error)
     return NextResponse.json(
       {
         error: 'INTERNAL_ERROR',
-        message: 'Failed to log pushups',
+        message: 'Failed to log reps',
         timestamp: Date.now(),
       },
       { status: 500 }
@@ -142,7 +181,12 @@ export async function GET(
 
     // Get all logs
     const logs = await challengeRepository.getAllLogs(challengeId)
-    const metrics = await challengeRepository.getMetrics(challengeId)
+
+    // Get metrics for first activity to get currentDay
+    const firstActivityMetrics = await challengeRepository.getMetricsForActivity(
+      challengeId,
+      challenge.activities[0]
+    )
 
     return NextResponse.json(
       {
@@ -150,13 +194,16 @@ export async function GET(
         data: {
           logs: logs.map((log) => ({
             date: log.date,
-            pushups: log.pushups,
+            activity: log.activity,
+            reps: log.reps,
             timestamp: log.timestamp,
           })),
           challenge: {
             startDate: challenge.startDate,
             duration: challenge.duration,
-            currentDay: metrics.currentDay,
+            currentDay: firstActivityMetrics.currentDay,
+            activities: challenge.activities,
+            activityUnits: challenge.activityUnits || {},
           },
         },
         timestamp: Date.now(),

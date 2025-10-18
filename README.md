@@ -1,16 +1,19 @@
-# Push Track
+# Challenge Tracker
 
-A mobile-first web application for tracking daily pushup progress over a user-defined challenge period.
+A mobile-first web application for tracking daily fitness activities over a user-defined challenge period.
 
 ## Features
 
-- **Create Challenges**: Set a custom duration (1-365 days) for your pushup tracking challenge
-- **Daily Logging**: Log your pushup count each day using an intuitive stepper interface
-- **Progress Visualization**: View your progress with interactive charts showing daily counts
-- **Streak Tracking**: Monitor your consecutive days of non-zero pushup logging
-- **Metrics Dashboard**: Track personal bests, completion rates, and total pushups
+- **Multi-Activity Support**: Track 1-5 different activities (push-ups, pull-ups, running, etc.) with flexible units
+- **Custom Units**: Choose from reps, minutes, seconds, km, miles, meters, or hours per activity
+- **Create Challenges**: Set a custom duration (1-365 days) for your fitness tracking challenge
+- **Daily Logging**: Log all your activities each day using an intuitive stepper interface
+- **Progress Visualization**: View your progress with interactive charts showing daily counts per activity
+- **Streak Tracking**: Monitor your consecutive days of logging
+- **Metrics Dashboard**: Track personal bests, completion rates, and totals per activity
 - **Mobile-First Design**: Optimized for mobile devices with 44x44px touch targets
 - **URL-Based Access**: Share your challenge via URL - no authentication required
+- **International Support**: Swedish characters and date formatting
 
 ## Tech Stack
 
@@ -71,15 +74,17 @@ npm run dev
 ### Creating a Challenge
 
 1. Click "Start New Challenge" on the home page
-2. Enter your desired challenge duration (1-365 days)
-3. You'll be redirected to your challenge dashboard with a unique URL
+2. Select 1-5 activities and their units (reps, minutes, km, etc.)
+3. Enter your desired challenge duration (1-365 days)
+4. Optionally provide an email to receive your challenge link
+5. You'll be redirected to your challenge dashboard with a unique URL
 
-### Logging Daily Pushups
+### Logging Daily Activities
 
 1. Navigate to your challenge dashboard
-2. Click "Log Today's Pushups"
-3. Use the stepper to set your count (defaults to yesterday's count)
-4. Submit to save your log
+2. Click "Log Today's Activities"
+3. Use the stepper to set your count for each activity (defaults to yesterday's count)
+4. Submit to save all logs
 
 ### Viewing Progress
 

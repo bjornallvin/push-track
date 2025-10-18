@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { MetricsDisplay } from './metrics-display'
 import { AbandonButton } from './abandon-button'
+import type { ActivityUnit } from '@/lib/challenge/types'
 
 interface DashboardProps {
   challengeId: string
@@ -10,14 +11,18 @@ interface DashboardProps {
   startDate: string
   status: 'active' | 'completed'
   currentDay: number
-  metrics: {
-    streak: number
-    personalBest: number
-    totalPushups: number
-    daysLogged: number
-    completionRate: number
+  activities: string[]
+  activityUnits: Record<string, ActivityUnit>
+  activityMetrics: {
+    [activity: string]: {
+      streak: number
+      personalBest: number
+      totalReps: number
+      daysLogged: number
+      completionRate: number
+      hasLoggedToday: boolean
+    }
   }
-  hasLoggedToday: boolean
 }
 
 export function Dashboard({
@@ -26,9 +31,14 @@ export function Dashboard({
   startDate,
   status,
   currentDay,
-  metrics,
-  hasLoggedToday,
+  activities,
+  activityUnits,
+  activityMetrics,
 }: DashboardProps) {
+  // Check if all activities have been logged today
+  const allActivitiesLogged = activities.every(
+    (activity) => activityMetrics[activity]?.hasLoggedToday
+  )
   return (
     <div className="space-y-6">
       <Card className="border-2 border-purple-200 dark:border-purple-800 bg-gradient-to-br from-white to-purple-50/30 dark:from-gray-950 dark:to-purple-950/20 shadow-xl">
@@ -37,7 +47,7 @@ export function Dashboard({
             <div>
               <CardTitle className="text-2xl bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Your {duration}-Day Challenge</CardTitle>
               <CardDescription className="text-base mt-2 text-gray-700 dark:text-gray-300">
-                Started {new Date(startDate).toLocaleDateString()} • Day {currentDay} of {duration}
+                Started {new Date(startDate).toLocaleDateString('sv-SE')} • Day {currentDay} of {duration}
               </CardDescription>
             </div>
             <div className="text-4xl animate-pulse">💪</div>
@@ -47,12 +57,12 @@ export function Dashboard({
           <div className="space-y-4">
             {status === 'active' && (
               <>
-                {hasLoggedToday ? (
+                {allActivitiesLogged ? (
                   <div className="rounded-lg bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/50 dark:to-emerald-950/50 p-5 text-sm text-green-800 dark:text-green-200 border-2 border-green-300 dark:border-green-800 shadow-lg">
                     <div className="flex items-start gap-3">
                       <div className="text-3xl">✓</div>
                       <div>
-                        <p className="font-bold mb-1 text-green-900 dark:text-green-100">Maximum logged for today!</p>
+                        <p className="font-bold mb-1 text-green-900 dark:text-green-100">All activities logged for today!</p>
                         <p className="text-green-700 dark:text-green-300">
                           Great work! Come back tomorrow to push your limits again.
                         </p>
@@ -62,7 +72,7 @@ export function Dashboard({
                 ) : (
                   <Button asChild size="lg" className="w-full h-14 text-base font-semibold bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 hover:from-emerald-700 hover:via-teal-700 hover:to-emerald-700 shadow-lg hover:shadow-xl transition-all">
                     <Link href={`/challenge/${challengeId}/log`}>
-                      💪 Log Today&apos;s Maximum
+                      💪 Log Today&apos;s Activities
                     </Link>
                   </Button>
                 )}
@@ -89,10 +99,9 @@ export function Dashboard({
       <MetricsDisplay
         currentDay={currentDay}
         duration={duration}
-        streak={metrics.streak}
-        personalBest={metrics.personalBest}
-        totalPushups={metrics.totalPushups}
-        completionRate={metrics.completionRate}
+        activities={activities}
+        activityUnits={activityUnits}
+        activityMetrics={activityMetrics}
       />
 
       <div className="space-y-4">

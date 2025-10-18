@@ -1,4 +1,4 @@
-import type { Challenge, DailyLog, ProgressMetrics } from './types'
+import type { Challenge, DailyLog, ProgressMetrics, ActivityMetrics } from './types'
 import {
   getTodayLocalDate,
   daysBetween,
@@ -6,7 +6,7 @@ import {
 } from '@/lib/utils'
 
 /**
- * Metrics calculation functions for the Pushup Challenge Tracker
+ * Metrics calculation functions for the Multi-Activity Challenge Tracker
  */
 
 /**
@@ -24,9 +24,9 @@ export function calculateCurrentDay(challenge: Challenge): number {
 }
 
 /**
- * Calculate the current streak (consecutive days with non-zero pushups)
+ * Calculate the current streak (consecutive days with non-zero reps)
  * Streak counts backwards from today or the most recent non-zero day
- * Zero pushup days break the streak
+ * Zero rep days break the streak
  */
 export function calculateStreak(logs: DailyLog[]): number {
   if (logs.length === 0) return 0
@@ -39,8 +39,11 @@ export function calculateStreak(logs: DailyLog[]): number {
   let expectedDate = today
 
   for (const log of sortedLogs) {
-    // If we hit a gap or zero pushups, break the streak
-    if (log.date !== expectedDate || log.pushups === 0) {
+    // Get reps (backward compatible with old 'pushups' field)
+    const reps = log.reps ?? log.pushups ?? 0
+
+    // If we hit a gap or zero reps, break the streak
+    if (log.date !== expectedDate || reps === 0) {
       break
     }
 
@@ -68,18 +71,26 @@ export function calculateCompletionRate(
 }
 
 /**
- * Find the personal best (highest single-day pushup count)
+ * Find the personal best (highest single-day rep count)
  */
 export function calculatePersonalBest(logs: DailyLog[]): number {
   if (logs.length === 0) return 0
-  return Math.max(...logs.map((log) => log.pushups))
+  return Math.max(...logs.map((log) => log.reps ?? log.pushups ?? 0))
+}
+
+/**
+ * Calculate total reps across all logged days
+ */
+export function calculateTotalReps(logs: DailyLog[]): number {
+  return logs.reduce((sum, log) => sum + (log.reps ?? log.pushups ?? 0), 0)
 }
 
 /**
  * Calculate total pushups across all logged days
+ * @deprecated Use calculateTotalReps instead
  */
 export function calculateTotalPushups(logs: DailyLog[]): number {
-  return logs.reduce((sum, log) => sum + log.pushups, 0)
+  return calculateTotalReps(logs)
 }
 
 /**
@@ -101,7 +112,7 @@ export function calculateDaysMissed(
 
 /**
  * Calculate all progress metrics from challenge and logs
- * This is the main function used by the repository
+ * This is the main function used by the repository (backward compatible)
  */
 export function calculateMetrics(
   challenge: Challenge,
@@ -116,6 +127,35 @@ export function calculateMetrics(
     streak: calculateStreak(logs),
     personalBest: calculatePersonalBest(logs),
     totalPushups: calculateTotalPushups(logs),
+    daysLogged,
+    daysMissed,
+    completionRate: calculateCompletionRate(daysLogged, currentDay),
+    calculatedAt: Date.now(),
+  }
+}
+
+/**
+ * Calculate metrics for a specific activity
+ * Filters logs to only include the specified activity before calculating
+ */
+export function calculateActivityMetrics(
+  challenge: Challenge,
+  allLogs: DailyLog[],
+  activity: string
+): ActivityMetrics {
+  // Filter logs for this specific activity
+  const activityLogs = allLogs.filter((log) => log.activity === activity)
+
+  const currentDay = calculateCurrentDay(challenge)
+  const daysLogged = calculateDaysLogged(activityLogs)
+  const daysMissed = calculateDaysMissed(currentDay, daysLogged)
+
+  return {
+    activity,
+    currentDay,
+    streak: calculateStreak(activityLogs),
+    personalBest: calculatePersonalBest(activityLogs),
+    totalReps: calculateTotalReps(activityLogs),
     daysLogged,
     daysMissed,
     completionRate: calculateCompletionRate(daysLogged, currentDay),

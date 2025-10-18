@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
-import { LogStepper } from '@/components/challenge/log-stepper'
+import { ActivityLogger } from '@/components/challenge/activity-logger'
 import { Button } from '@/components/ui/button'
 
 async function getChallenge(id: string) {
@@ -33,20 +33,30 @@ export default async function LogPage({
     notFound()
   }
 
-  // If already logged today, redirect to dashboard
-  if (challenge.hasLoggedToday) {
+  // Check if all activities have been logged today
+  const allActivitiesLogged = challenge.activities.every(
+    (activity: string) => challenge.activityMetrics[activity]?.hasLoggedToday
+  )
+
+  // If already logged all activities today, redirect to dashboard
+  if (allActivitiesLogged) {
     redirect(`/challenge/${params.id}`)
   }
 
-  // Use yesterday's count as default, or 0 if no yesterday count
-  const defaultValue = challenge.yesterdayCount ?? 0
+  // Build yesterday values for each activity
+  const yesterdayValues: Record<string, number> = {}
+  challenge.activities.forEach((activity: string) => {
+    yesterdayValues[activity] = challenge.activityMetrics[activity]?.yesterdayCount ?? 0
+  })
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4">
       <div className="w-full max-w-md space-y-4">
-        <LogStepper
+        <ActivityLogger
           challengeId={params.id}
-          defaultValue={defaultValue}
+          activities={challenge.activities}
+          activityUnits={challenge.activityUnits || {}}
+          yesterdayValues={yesterdayValues}
         />
 
         <Button asChild variant="outline" className="w-full">

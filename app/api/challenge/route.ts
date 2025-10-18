@@ -7,7 +7,7 @@ import type { CreateChallengeResponse } from '@/lib/challenge/types'
 
 /**
  * POST /api/challenge
- * Create a new pushup challenge
+ * Create a new multi-activity challenge
  */
 export async function POST(request: NextRequest) {
   try {
@@ -18,8 +18,8 @@ export async function POST(request: NextRequest) {
     if (!validation.success) {
       return NextResponse.json(
         {
-          error: 'INVALID_DURATION',
-          message: 'Duration must be between 1 and 365 days',
+          error: 'INVALID_REQUEST',
+          message: 'Invalid challenge parameters',
           details: validation.error.errors,
           timestamp: Date.now(),
         },
@@ -27,13 +27,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { duration, email } = validation.data
+    const { duration, email, activities, activityUnits } = validation.data
     const timezone = getUserTimezone()
 
     // Create challenge
     const challengeId = await challengeRepository.createChallenge(
       duration,
       timezone,
+      activities,
+      activityUnits,
       email || undefined
     )
 
@@ -44,6 +46,7 @@ export async function POST(request: NextRequest) {
           to: email,
           challengeId,
           duration,
+          activities,
           isNew: true,
         })
       } catch (error) {
@@ -65,6 +68,8 @@ export async function POST(request: NextRequest) {
       startDate: challenge.startDate,
       status: 'active',
       currentDay: 1,
+      activities: challenge.activities,
+      activityUnits: challenge.activityUnits || {},
     }
 
     return NextResponse.json(

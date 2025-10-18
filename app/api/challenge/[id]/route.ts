@@ -4,7 +4,7 @@ import type { GetChallengeResponse } from '@/lib/challenge/types'
 
 /**
  * GET /api/challenge/[id]
- * Get challenge by ID with metrics and yesterday's count
+ * Get challenge by ID with per-activity metrics and yesterday's counts
  */
 export async function GET(
   request: NextRequest,
@@ -27,30 +27,46 @@ export async function GET(
       )
     }
 
-    // Get metrics
-    const metrics = await challengeRepository.getMetrics(challengeId)
+    // Get metrics for all activities
+    const metricsMap = await challengeRepository.getAllActivityMetrics(challengeId)
 
-    // Check if logged today
-    const hasLoggedToday = await challengeRepository.hasLoggedToday(challengeId)
+    // Build activity metrics response
+    const activityMetrics: GetChallengeResponse['activityMetrics'] = {}
 
-    // Get yesterday's count for pre-filling
-    const yesterdayLog = await challengeRepository.getYesterdayLog(challengeId)
+    for (const activity of challenge.activities) {
+      const metrics = metricsMap.get(activity)
+      if (!metrics) continue
+
+      // Check if logged today for this activity
+      const hasLoggedToday = await challengeRepository.hasLoggedToday(challengeId, activity)
+
+      // Get yesterday's count for this activity
+      const yesterdayLog = await challengeRepository.getYesterdayLog(challengeId, activity)
+
+      activityMetrics[activity] = {
+        streak: metrics.streak,
+        personalBest: metrics.personalBest,
+        totalReps: metrics.totalReps,
+        daysLogged: metrics.daysLogged,
+        completionRate: metrics.completionRate,
+        hasLoggedToday,
+        yesterdayCount: yesterdayLog ? yesterdayLog.reps : null,
+      }
+    }
+
+    // Get current day from first activity metrics
+    const firstActivityMetrics = metricsMap.get(challenge.activities[0])
+    const currentDay = firstActivityMetrics?.currentDay ?? 1
 
     const response: GetChallengeResponse = {
       id: challenge.id,
       duration: challenge.duration,
       startDate: challenge.startDate,
       status: challenge.status,
-      currentDay: metrics.currentDay,
-      metrics: {
-        streak: metrics.streak,
-        personalBest: metrics.personalBest,
-        totalPushups: metrics.totalPushups,
-        daysLogged: metrics.daysLogged,
-        completionRate: metrics.completionRate,
-      },
-      hasLoggedToday,
-      yesterdayCount: yesterdayLog ? yesterdayLog.pushups : null,
+      currentDay,
+      activities: challenge.activities,
+      activityUnits: challenge.activityUnits || {},
+      activityMetrics,
     }
 
     return NextResponse.json(

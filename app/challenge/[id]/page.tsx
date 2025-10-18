@@ -41,7 +41,7 @@ export default async function ChallengePage({
   return (
     <main className="min-h-screen p-4 md:p-8">
       <div className="mx-auto max-w-2xl">
-        <h1 className="mb-8 text-3xl font-bold">Push Track</h1>
+        <h1 className="mb-8 text-3xl font-bold">Challenge Tracker</h1>
         <Dashboard {...challenge} challengeId={params.id} />
       </div>
     </main>
