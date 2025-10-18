@@ -24,6 +24,7 @@ const formSchema = z.object({
     .int()
     .min(1, 'Challenge must be at least 1 day')
     .max(365, 'Challenge cannot exceed 365 days'),
+  email: z.string().email('Please enter a valid email').optional().or(z.literal('')),
 })
 
 type FormData = z.infer<typeof formSchema>
@@ -37,6 +38,7 @@ export function ChallengeForm() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       duration: 30,
+      email: '',
     },
   })
 
@@ -102,6 +104,28 @@ export function ChallengeForm() {
                   </FormControl>
                   <FormDescription>
                     Choose between 1 and 365 days
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-base">Email (Optional)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="email"
+                      placeholder="your@email.com"
+                      {...field}
+                      className="h-12 text-lg" // Touch target compliance
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    We&apos;ll send you your challenge link so you never lose it
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

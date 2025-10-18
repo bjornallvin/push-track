@@ -13,6 +13,7 @@ export const ChallengeSchema = z.object({
   createdAt: z.number().int().positive(),
   completedAt: z.number().int().positive().optional(),
   timezone: z.string().min(1),
+  email: z.string().email().optional(),
 })
 
 // Daily log validation
@@ -38,6 +39,7 @@ export const ProgressMetricsSchema = z.object({
 // API Request validation schemas
 export const CreateChallengeRequestSchema = z.object({
   duration: z.number().int().min(1).max(365),
+  email: z.string().email().optional().or(z.literal('')),
 })
 
 export const LogPushupsRequestSchema = z.object({

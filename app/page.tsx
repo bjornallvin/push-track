@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { ForgotLinkForm } from '@/components/forgot-link-form'
 
 export default function HomePage() {
   return (
@@ -104,6 +105,9 @@ export default function HomePage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Forgot Link Section */}
+        <ForgotLinkForm />
       </div>
     </main>
   )

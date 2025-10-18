@@ -10,6 +10,7 @@ export interface Challenge {
   createdAt: number // Unix timestamp (ms)
   completedAt?: number // Unix timestamp (ms), undefined if not completed
   timezone: string // IANA timezone at creation
+  email?: string // Optional email for sending challenge link
 }
 
 export interface DailyLog {
@@ -33,6 +34,7 @@ export interface ProgressMetrics {
 // API Request types
 export interface CreateChallengeRequest {
   duration: number // 1-365 days
+  email?: string // Optional email for sending challenge link
 }
 
 export interface LogPushupsRequest {

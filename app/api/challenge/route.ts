@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { challengeRepository } from '@/lib/challenge/repository'
 import { CreateChallengeRequestSchema } from '@/lib/challenge/validation'
 import { getUserTimezone } from '@/lib/utils'
+import { sendChallengeEmail } from '@/lib/email'
 import type { CreateChallengeResponse } from '@/lib/challenge/types'
 
 /**
@@ -26,14 +27,30 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { duration } = validation.data
+    const { duration, email } = validation.data
     const timezone = getUserTimezone()
 
     // Create challenge
     const challengeId = await challengeRepository.createChallenge(
       duration,
-      timezone
+      timezone,
+      email || undefined
     )
+
+    // Send email if provided
+    if (email) {
+      try {
+        await sendChallengeEmail({
+          to: email,
+          challengeId,
+          duration,
+          isNew: true,
+        })
+      } catch (error) {
+        console.error('Failed to send email, but challenge was created:', error)
+        // Don't fail the request if email fails
+      }
+    }
 
     // Get the created challenge
     const challenge = await challengeRepository.getChallenge(challengeId)

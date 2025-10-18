@@ -12,7 +12,7 @@ export class ChallengeRepository {
    * Create a new challenge
    * Returns the challenge ID (UUID)
    */
-  async createChallenge(duration: number, timezone: string): Promise<string> {
+  async createChallenge(duration: number, timezone: string, email?: string): Promise<string> {
     const redis = await getRedis()
     const challengeId = crypto.randomUUID()
 
@@ -23,6 +23,7 @@ export class ChallengeRepository {
       status: 'active',
       createdAt: Date.now(),
       timezone,
+      ...(email && { email }),
     }
 
     // Calculate TTL: duration + 30 day grace period
