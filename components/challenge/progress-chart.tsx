@@ -115,7 +115,7 @@ export function ProgressChart({
   const options = {
     responsive: true,
     maintainAspectRatio: false,
-    animation: false, // Disable for performance with up to 365 data points
+    animation: false as const, // Disable for performance with up to 365 data points
     interaction: {
       mode: 'index' as const,
       intersect: false,

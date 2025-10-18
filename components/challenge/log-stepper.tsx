@@ -62,7 +62,7 @@ export function LogStepper({ challengeId, defaultValue = 0 }: LogStepperProps) {
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle>Log Today's Pushups</CardTitle>
+        <CardTitle>Log Today&apos;s Pushups</CardTitle>
         <CardDescription>
           Use the stepper to set your pushup count for today
         </CardDescription>

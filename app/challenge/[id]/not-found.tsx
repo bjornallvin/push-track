@@ -9,7 +9,7 @@ export default function ChallengeNotFound() {
         <CardHeader>
           <CardTitle>Challenge Not Found</CardTitle>
           <CardDescription>
-            This challenge doesn't exist or has expired
+            This challenge doesn&apos;t exist or has expired
           </CardDescription>
         </CardHeader>
         <CardContent>

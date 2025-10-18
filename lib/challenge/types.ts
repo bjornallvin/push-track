@@ -65,7 +65,7 @@ export interface GetChallengeResponse {
   id: string
   duration: number
   startDate: string
-  status: 'active' | 'completed'
+  status: 'active' | 'completed' | 'abandoned'
   currentDay: number
   metrics: {
     streak: number

@@ -44,12 +44,12 @@ export function Dashboard({
               <>
                 {hasLoggedToday ? (
                   <div className="rounded-md bg-green-50 dark:bg-green-950 p-4 text-sm text-green-800 dark:text-green-200">
-                    ✓ You've logged your pushups for today! Come back tomorrow to continue your streak.
+                    ✓ You&apos;ve logged your pushups for today! Come back tomorrow to continue your streak.
                   </div>
                 ) : (
                   <Button asChild size="lg" className="w-full">
                     <Link href={`/challenge/${challengeId}/log`}>
-                      Log Today's Pushups
+                      Log Today&apos;s Pushups
                     </Link>
                   </Button>
                 )}
