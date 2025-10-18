@@ -36,28 +36,16 @@ open http://localhost:3000
 
 ### Redis Instance
 
-Choose one of these options:
+**Important**: This project uses the same production Redis instance for both development and production environments.
 
-**Option 1: Local Redis (Development)**
-```bash
-# macOS (using Homebrew)
-brew install redis
-brew services start redis
-
-# Linux (Ubuntu/Debian)
-sudo apt install redis-server
-sudo systemctl start redis
-
-# Docker
-docker run -d -p 6379:6379 redis:7-alpine
-```
-
-**Option 2: Cloud Redis (Production/Testing)**
+**Recommended Setup: Cloud Redis**
 - Railway: https://railway.app (free tier available)
 - Redis Cloud: https://redis.com/try-free (free tier: 30MB)
 - Upstash: https://upstash.com (serverless, pay-as-you-go)
 
-**Connection URL format**: `redis://localhost:6379` (local) or provided by cloud service
+**Connection URL format**: Use the connection URL provided by your cloud Redis service
+
+**Note**: While you can use a local Redis instance (`redis://localhost:6379`), the project is designed to use a shared production Redis for all environments. This simplifies deployment and ensures consistency.
 
 ---
 
@@ -123,10 +111,13 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
 **Connection URL formats**:
-- **Local**: `redis://localhost:6379`
+- **Railway**: `redis://default:password@redis.railway.internal:6379`
+- **Redis Cloud**: `rediss://default:password@redis-12345.c1.us-east-1-1.ec2.cloud.redislabs.com:12345`
+- **Upstash**: `rediss://default:password@your-upstash-redis.upstash.io:6379`
 - **With password**: `redis://default:password@host:6379`
 - **TLS**: `rediss://default:password@host:6380` (note the double 's')
-- **Cloud provider**: Use the connection URL provided by your service
+
+**Important**: The same Redis URL is used for both development and production.
 
 ---
 
@@ -184,6 +175,8 @@ push-track/
 
 ### Redis Debugging
 
+**Important**: Since this project uses production Redis for all environments, be careful when inspecting or modifying data during development.
+
 **Check Redis connection**:
 ```typescript
 // Add to any API route temporarily
@@ -193,29 +186,31 @@ const ping = await redis.ping()
 console.log('Redis ping:', ping) // Should log "PONG"
 ```
 
-**Inspect Redis data**:
+**Inspect Redis data** (use with caution - production data):
 ```bash
-# Connect to Redis CLI
-redis-cli
+# Connect to Redis CLI with your production URL
+redis-cli -u "redis://your-production-redis-url:6379"
 
-# Or for remote Redis
-redis-cli -u redis://your-host:6379
+# List all keys (be careful - this is production data)
+KEYS challenge:*
 
-# List all keys
-KEYS *
-
-# Get session data
-HGETALL session:your-session-id
+# Get challenge data
+HGETALL challenge:your-challenge-id
 
 # Get logs
-ZRANGE session:your-session-id:logs 0 -1
+ZRANGE challenge:your-challenge-id:logs 0 -1
 
-# Monitor all commands (useful for debugging)
+# Monitor all commands (useful for debugging, but shows all production traffic)
 MONITOR
 
 # Exit
 exit
 ```
+
+**Development Best Practices**:
+- Use unique challenge IDs during development to avoid conflicts
+- Be careful not to delete production challenge data
+- Consider using a prefix for dev challenges if needed
 
 ### URL-Based Challenge Access
 
@@ -341,7 +336,7 @@ vercel --prod
    - `REDIS_URL` (your cloud Redis connection URL)
 3. Redeploy
 
-**Note**: For production, use a cloud Redis provider (Railway, Redis Cloud, etc.) as Vercel serverless functions don't support persistent local Redis.
+**Note**: This project uses the same cloud Redis instance for both development and production, ensuring consistency across all environments.
 
 ---
 
