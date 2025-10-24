@@ -28,6 +28,8 @@ interface ActivityLoggerProps {
   activities: string[]
   activityUnits: Record<string, ActivityUnit>
   yesterdayValues: Record<string, number>
+  targetDate?: string // Optional: YYYY-MM-DD date for editing past entries
+  existingLogs?: Record<string, number> // Optional: Pre-fill with existing log values for edit mode
 }
 
 export function ActivityLogger({
@@ -35,14 +37,20 @@ export function ActivityLogger({
   activities,
   activityUnits,
   yesterdayValues,
+  targetDate,
+  existingLogs,
 }: ActivityLoggerProps) {
   const router = useRouter()
 
-  // Initialize activity reps with yesterday's values
+  // Determine if we're in edit mode
+  const isEditMode = !!targetDate
+
+  // Initialize activity reps with existing logs (edit mode) or yesterday's values (log mode)
   const [activityReps, setActivityReps] = useState<Record<string, number>>(() => {
     const initialValues: Record<string, number> = {}
     activities.forEach((activity) => {
-      initialValues[activity] = yesterdayValues[activity] ?? 0
+      // Priority: existingLogs > yesterdayValues > 0
+      initialValues[activity] = existingLogs?.[activity] ?? yesterdayValues[activity] ?? 0
     })
     return initialValues
   })
@@ -76,12 +84,18 @@ export function ActivityLogger({
         reps: activityReps[activity] ?? 0,
       }))
 
+      // Build request body with optional date parameter
+      const requestBody = {
+        logs,
+        ...(targetDate && { date: targetDate }),
+      }
+
       const response = await fetch(`/api/challenge/${challengeId}/log`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ logs }),
+        body: JSON.stringify(requestBody),
       })
 
       const data = await response.json()
@@ -92,9 +106,13 @@ export function ActivityLogger({
 
       setSuccess(true)
 
-      // Redirect back to dashboard after a short delay
+      // Redirect based on mode: edit mode goes to progress, log mode goes to dashboard
       setTimeout(() => {
-        router.push(`/challenge/${challengeId}`)
+        if (isEditMode) {
+          router.push(`/challenge/${challengeId}/progress`)
+        } else {
+          router.push(`/challenge/${challengeId}`)
+        }
         router.refresh() // Refresh the page data
       }, 1500)
     } catch (err) {
@@ -108,10 +126,12 @@ export function ActivityLogger({
     <Card className="w-full max-w-md border-2 border-emerald-200 dark:border-emerald-800 shadow-2xl shadow-emerald-500/20 bg-gradient-to-br from-white to-emerald-50/50 dark:from-gray-950 dark:to-emerald-950/30">
       <CardHeader className="space-y-3">
         <CardTitle className="text-2xl bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-          Log Today&apos;s Activities
+          {isEditMode ? `Edit Entry for ${targetDate}` : "Log Today's Activities"}
         </CardTitle>
         <CardDescription className="text-base text-gray-700 dark:text-gray-300">
-          Enter your numbers for each activity today
+          {isEditMode
+            ? 'Update your numbers for this date'
+            : 'Enter your numbers for each activity today'}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">

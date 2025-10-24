@@ -46,6 +46,7 @@ export default async function ProgressPage({
         </div>
 
         <ProgressChart
+          challengeId={params.id}
           logs={data.logs}
           startDate={data.challenge.startDate}
           duration={data.challenge.duration}

@@ -27,6 +27,17 @@ export interface DailyLog {
   pushups?: number // Use 'reps' instead
 }
 
+// Derived entity for edit button logic (no storage)
+export interface ChallengeDay {
+  date: string // ISO date (YYYY-MM-DD)
+  dayNumber: number // 1-indexed day (1 = first day)
+  isPast: boolean // date < today
+  isCurrent: boolean // date === today
+  isFuture: boolean // date > today
+  isEditable: boolean // isPast || isCurrent (no future editing)
+  logs: DailyLog[] // Logs for this date (can be empty array)
+}
+
 export interface ProgressMetrics {
   currentDay: number // Day number in challenge (e.g., 5 for "Day 5 of 30")
   streak: number // Consecutive days with non-zero pushups
@@ -64,6 +75,7 @@ export interface LogRepsRequest {
     activity: string // Activity name
     reps: number // 0-10,000 reps for this activity
   }>
+  date?: string // Optional ISO date (YYYY-MM-DD) for editing past entries, defaults to today
 }
 
 // Deprecated - use LogRepsRequest instead
