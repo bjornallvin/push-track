@@ -96,3 +96,19 @@ export function isValidDateString(dateString: string): boolean {
   const date = parseLocalDate(dateString)
   return !isNaN(date.getTime())
 }
+
+/**
+ * Sanitize user-generated text to prevent XSS attacks.
+ * Note: React JSX already escapes by default, this is defense-in-depth.
+ *
+ * @param input - The text to sanitize
+ * @returns Sanitized text with HTML special characters escaped
+ */
+export function sanitizeText(input: string): string {
+  return input
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+    .replace(/\//g, '&#x2F;')
+}
