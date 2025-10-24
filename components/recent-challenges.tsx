@@ -76,45 +76,46 @@ function ChallengeCard({ challenge, onRemove }: ChallengeCardProps) {
   const relativeTime = getRelativeTime(challenge.lastVisited)
 
   return (
-    <Card className="border-2 border-gray-200 dark:border-gray-800 hover:border-purple-300 dark:hover:border-purple-700 transition-all hover:shadow-lg group">
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <CardTitle className="text-lg">
-              Your {challenge.duration}-Day Challenge
-            </CardTitle>
-            <CardDescription className="text-sm mt-1">
-              <span className="truncate inline-block max-w-[200px]">
-                {sanitizeText(challenge.activities.join(', '))}
-              </span>
-            </CardDescription>
+    <Card className="border-2 border-gray-200 dark:border-gray-800 hover:border-purple-300 dark:hover:border-purple-700 transition-all hover:shadow-lg group relative">
+      <Link href={challenge.url as any} className="block">
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <CardTitle className="text-lg">
+                Your {challenge.duration}-Day Challenge
+              </CardTitle>
+              <CardDescription className="text-sm mt-1">
+                <span className="truncate inline-block max-w-[200px]">
+                  {sanitizeText(challenge.activities.join(', '))}
+                </span>
+              </CardDescription>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity relative z-10"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                onRemove()
+              }}
+              aria-label="Remove challenge"
+            >
+              <Trash2 className="h-4 w-4 text-gray-500" />
+            </Button>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-            onClick={(e) => {
-              e.preventDefault()
-              onRemove()
-            }}
-            aria-label="Remove challenge"
-          >
-            <Trash2 className="h-4 w-4 text-gray-500" />
-          </Button>
-        </div>
-      </CardHeader>
+        </CardHeader>
 
-      <CardContent className="pt-0">
-        <Button variant="outline" className="w-full" size="lg" asChild>
-          <Link href={challenge.url as any}>
-            <Clock className="h-4 w-4 mr-2" />
-            Continue
-          </Link>
-        </Button>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
-          Last visited {relativeTime}
-        </p>
-      </CardContent>
+        <CardContent className="pt-0">
+          <div className="border-2 border-gray-300 dark:border-gray-700 rounded-lg p-3 flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+            <Clock className="h-4 w-4" />
+            <span className="font-medium">Continue</span>
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
+            Last visited {relativeTime}
+          </p>
+        </CardContent>
+      </Link>
     </Card>
   )
 }
