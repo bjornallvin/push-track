@@ -142,25 +142,40 @@ export class ChallengeRepository {
   }
 
   /**
-   * Log reps for a specific activity today
-   * Throws error if already logged this activity today
+   * Log reps for a specific activity
+   * - targetDate: Optional date (YYYY-MM-DD) for editing past entries. Defaults to today.
+   * - editMode: If true, allows overwriting existing logs without throwing error
+   * Throws error if already logged this activity for the date (unless in edit mode)
    */
   async logReps(
     challengeId: string,
     activity: string,
-    reps: number
+    reps: number,
+    targetDate?: string,
+    editMode = false
   ): Promise<DailyLog> {
     const redis = await getRedis()
-    const today = getTodayLocalDate()
+    const date = targetDate || getTodayLocalDate()
 
-    // Check if already logged this activity today
-    const hasLogged = await this.hasLoggedToday(challengeId, activity)
-    if (hasLogged) {
-      throw new Error(`Already logged ${activity} for today`)
+    // Check if already logged this activity for this date (skip in edit mode)
+    if (!editMode) {
+      const logs = await this.getAllLogs(challengeId)
+      const hasLogged = logs.some((log) => log.date === date && log.activity === activity)
+      if (hasLogged) {
+        throw new Error(`Already logged ${activity} for ${date}`)
+      }
+    } else {
+      // In edit mode, remove existing log for this date+activity if it exists
+      const logs = await this.getAllLogs(challengeId)
+      const existingLog = logs.find((log) => log.date === date && log.activity === activity)
+      if (existingLog) {
+        // Remove the old log entry
+        await redis.zRem(`challenge:${challengeId}:logs`, JSON.stringify(existingLog))
+      }
     }
 
     const log: DailyLog = {
-      date: today,
+      date,
       activity,
       reps,
       timestamp: Date.now(),
@@ -168,7 +183,7 @@ export class ChallengeRepository {
     }
 
     // Convert date to Unix timestamp for sorting
-    const dateTimestamp = new Date(today).getTime()
+    const dateTimestamp = new Date(date).getTime()
 
     // Add to sorted set
     await redis.zAdd(`challenge:${challengeId}:logs`, {

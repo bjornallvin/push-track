@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -44,6 +45,7 @@ const CHART_COLORS = [
 const MISSED_COLOR = { bg: 'rgba(239, 68, 68, 0.6)', border: 'rgba(239, 68, 68, 1)' } // red
 
 interface ProgressChartProps {
+  challengeId: string
   logs: DailyLog[]
   startDate: string
   duration: number
@@ -53,6 +55,7 @@ interface ProgressChartProps {
 }
 
 export function ProgressChart({
+  challengeId,
   logs,
   startDate,
   duration,
@@ -60,6 +63,8 @@ export function ProgressChart({
   activities,
   activityUnits,
 }: ProgressChartProps) {
+  const router = useRouter()
+
   if (logs.length === 0) {
     return (
       <Card>
@@ -133,6 +138,35 @@ export function ProgressChart({
             mode: 'index' as const,
             intersect: false,
           },
+          onClick: (event: any, elements: any[], chart: any) => {
+            let index = -1
+
+            // If clicked on a bar
+            if (elements.length > 0) {
+              index = elements[0].index
+            } else {
+              // Clicked somewhere else on chart (possibly label area)
+              // Calculate which column was clicked based on x position
+              const canvasPosition = chart.canvas.getBoundingClientRect()
+              const x = event.native.clientX - canvasPosition.left
+              const chartArea = chart.chartArea
+
+              if (x >= chartArea.left && x <= chartArea.right) {
+                const barWidth = (chartArea.right - chartArea.left) / dates.length
+                index = Math.floor((x - chartArea.left) / barWidth)
+              }
+            }
+
+            if (index >= 0 && index < dates.length) {
+              const clickedDate = dates[index]
+              const today = new Date().toISOString().split('T')[0]
+
+              // Only navigate if date is not in the future
+              if (clickedDate <= today) {
+                router.push(`/challenge/${challengeId}/edit?date=${clickedDate}`)
+              }
+            }
+          },
           plugins: {
             legend: {
               display: false,
@@ -168,11 +202,29 @@ export function ProgressChart({
             <CardHeader>
               <CardTitle>{activity}</CardTitle>
               <CardDescription>
-                Colored bars = logged days • Red bars = missed days (0 {unit})
+                Click bars or day labels to edit • Colored bars = logged days • Red bars = missed days (0 {unit})
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-[30vh] min-h-[200px] max-h-[300px]">
+              <div
+                className="h-[30vh] min-h-[200px] max-h-[300px] cursor-pointer"
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect()
+                  const x = e.clientX - rect.left
+                  const width = rect.width
+                  const columnWidth = width / dates.length
+                  const index = Math.floor(x / columnWidth)
+
+                  if (index >= 0 && index < dates.length) {
+                    const clickedDate = dates[index]
+                    const today = new Date().toISOString().split('T')[0]
+
+                    if (clickedDate <= today) {
+                      router.push(`/challenge/${challengeId}/edit?date=${clickedDate}`)
+                    }
+                  }
+                }}
+              >
                 <Bar data={chartData} options={options} />
               </div>
             </CardContent>
