@@ -29,7 +29,11 @@ export async function POST(
       )
     }
 
-    const { logs } = validation.data
+    const { logs, date } = validation.data
+
+    // Determine if we're in edit mode
+    const isEditMode = !!date
+    const targetDate = date || undefined
 
     // Get challenge
     const challenge = await challengeRepository.getChallenge(challengeId)
@@ -45,7 +49,38 @@ export async function POST(
       )
     }
 
-    if (challenge.status !== 'active') {
+    // Validate date range if date parameter is provided
+    if (date) {
+      const targetDateObj = new Date(date)
+      const startDateObj = new Date(challenge.startDate)
+      const today = new Date()
+      today.setHours(23, 59, 59, 999) // End of today
+
+      if (targetDateObj < startDateObj) {
+        return NextResponse.json(
+          {
+            error: 'VALIDATION_ERROR',
+            message: `Date ${date} is before challenge start date ${challenge.startDate}`,
+            timestamp: Date.now(),
+          },
+          { status: 400 }
+        )
+      }
+
+      if (targetDateObj > today) {
+        return NextResponse.json(
+          {
+            error: 'VALIDATION_ERROR',
+            message: 'Cannot edit future dates',
+            timestamp: Date.now(),
+          },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Skip completion check if in edit mode (allow editing completed challenges)
+    if (challenge.status !== 'active' && !isEditMode) {
       return NextResponse.json(
         {
           error: 'CHALLENGE_COMPLETED',
@@ -90,15 +125,21 @@ export async function POST(
 
     try {
       for (const { activity, reps } of logs) {
-        const log = await challengeRepository.logReps(challengeId, activity, reps)
+        const log = await challengeRepository.logReps(
+          challengeId,
+          activity,
+          reps,
+          targetDate,
+          isEditMode
+        )
         loggedEntries.push({
           date: log.date,
           activity: log.activity,
           reps: log.reps,
         })
 
-        // Recalculate metrics for this activity
-        const metrics = await challengeRepository.calculateAndCacheMetrics(
+        // Get metrics for this activity
+        const metrics = await challengeRepository.getMetricsForActivity(
           challengeId,
           activity
         )

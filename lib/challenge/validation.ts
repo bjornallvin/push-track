@@ -100,17 +100,34 @@ export const CreateChallengeRequestSchema = z.object({
   activityUnits: ActivityUnitsSchema,
 })
 
-export const LogRepsRequestSchema = z.object({
-  logs: z
-    .array(
-      z.object({
-        activity: ActivityNameSchema,
-        reps: z.number().int().min(0).max(10000),
-      })
-    )
-    .min(1, 'At least one activity must be logged')
-    .max(5, 'Maximum 5 activities can be logged'),
-})
+export const LogRepsRequestSchema = z
+  .object({
+    logs: z
+      .array(
+        z.object({
+          activity: ActivityNameSchema,
+          reps: z.number().int().min(0).max(10000),
+        })
+      )
+      .min(1, 'At least one activity must be logged')
+      .max(5, 'Maximum 5 activities can be logged'),
+    date: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format')
+      .optional(),
+  })
+  .refine(
+    (data) => {
+      if (!data.date) return true // Skip validation if not provided
+
+      const targetDate = new Date(data.date)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+
+      return targetDate <= today // Must not be future date
+    },
+    { message: 'Cannot edit future dates' }
+  )
 
 // Deprecated - use LogRepsRequestSchema instead
 export const LogPushupsRequestSchema = z.object({

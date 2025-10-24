@@ -90,11 +90,6 @@ export async function PUT(
       const oldLogJson = JSON.stringify(logToUpdate)
       await redis.zRem(`challenge:${challengeId}:logs`, oldLogJson)
 
-      // Recalculate metrics for the affected activity
-      if (logToUpdate.activity) {
-        await challengeRepository.calculateAndCacheMetrics(challengeId, logToUpdate.activity)
-      }
-
       return NextResponse.json(
         {
           success: true,
@@ -120,11 +115,6 @@ export async function PUT(
         score: dateTimestamp,
         value: JSON.stringify(updatedLog),
       })
-
-      // Recalculate metrics for the affected activity
-      if (updatedLog.activity) {
-        await challengeRepository.calculateAndCacheMetrics(challengeId, updatedLog.activity)
-      }
 
       return NextResponse.json(
         {
