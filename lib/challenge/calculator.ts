@@ -25,7 +25,7 @@ export function calculateCurrentDay(challenge: Challenge): number {
 
 /**
  * Calculate the current streak (consecutive days with non-zero reps)
- * Streak counts backwards from today or the most recent non-zero day
+ * Streak counts backwards from today if logged, otherwise from yesterday
  * Zero rep days break the streak
  */
 export function calculateStreak(logs: DailyLog[]): number {
@@ -36,7 +36,20 @@ export function calculateStreak(logs: DailyLog[]): number {
 
   let streak = 0
   const today = getTodayLocalDate()
+
+  // Check if there's a log for today
+  const hasLoggedToday = sortedLogs.some((log) => {
+    const reps = log.reps ?? log.pushups ?? 0
+    return log.date === today && reps > 0
+  })
+
+  // Start from today if logged, otherwise yesterday
   let expectedDate = today
+  if (!hasLoggedToday) {
+    const yesterday = new Date()
+    yesterday.setDate(yesterday.getDate() - 1)
+    expectedDate = formatLocalDate(yesterday)
+  }
 
   for (const log of sortedLogs) {
     // Get reps (backward compatible with old 'pushups' field)

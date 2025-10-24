@@ -49,11 +49,6 @@ export class ChallengeRepository {
     // Initialize empty logs sorted set
     await redis.expire(`challenge:${challengeId}:logs`, ttlSeconds)
 
-    // Initialize metrics hashes for each activity
-    for (const activity of activities) {
-      await redis.expire(`challenge:${challengeId}:metrics:${activity}`, ttlSeconds)
-    }
-
     return challengeId
   }
 
@@ -134,11 +129,19 @@ export class ChallengeRepository {
    */
   async abandonChallenge(challengeId: string): Promise<void> {
     const redis = await getRedis()
+    const challenge = await this.getChallenge(challengeId)
 
     // Delete all related keys
     await redis.del(`challenge:${challengeId}`)
     await redis.del(`challenge:${challengeId}:logs`)
-    await redis.del(`challenge:${challengeId}:metrics`)
+    await redis.del(`challenge:${challengeId}:metrics`) // old single metrics key (backward compat)
+
+    // Delete per-activity metrics if challenge exists
+    if (challenge) {
+      for (const activity of challenge.activities) {
+        await redis.del(`challenge:${challengeId}:metrics:${activity}`)
+      }
+    }
   }
 
   /**
@@ -296,32 +299,17 @@ export class ChallengeRepository {
   }
 
   /**
-   * Get or calculate metrics for a specific activity
-   * Caches metrics in Redis
+   * Get metrics for a specific activity
+   * Calculates metrics on-demand from stored data
    */
   async getMetricsForActivity(challengeId: string, activity: string): Promise<ActivityMetrics> {
-    const redis = await getRedis()
-
-    // Try to get cached metrics
-    const cachedData = await redis.hGetAll(`challenge:${challengeId}:metrics:${activity}`)
-
-    if (cachedData && Object.keys(cachedData).length > 0) {
-      // Return cached metrics
-      return {
-        activity: cachedData.activity,
-        currentDay: parseInt(cachedData.currentDay),
-        streak: parseInt(cachedData.streak),
-        personalBest: parseInt(cachedData.personalBest),
-        totalReps: parseInt(cachedData.totalReps),
-        daysLogged: parseInt(cachedData.daysLogged),
-        daysMissed: parseInt(cachedData.daysMissed),
-        completionRate: parseInt(cachedData.completionRate),
-        calculatedAt: parseInt(cachedData.calculatedAt),
-      }
+    const challenge = await this.getChallenge(challengeId)
+    if (!challenge) {
+      throw new Error('Challenge not found')
     }
 
-    // Calculate and cache metrics
-    return await this.calculateAndCacheMetrics(challengeId, activity)
+    const logs = await this.getAllLogs(challengeId)
+    return calculateActivityMetrics(challenge, logs, activity)
   }
 
   /**
@@ -344,31 +332,11 @@ export class ChallengeRepository {
   }
 
   /**
-   * Get or calculate metrics for a challenge (backward compatible)
-   * Returns metrics for the first activity or aggregated metrics
+   * Get metrics for a challenge (backward compatible)
+   * Calculates metrics on-demand from stored data
    * @deprecated Use getMetricsForActivity or getAllActivityMetrics instead
    */
   async getMetrics(challengeId: string): Promise<ProgressMetrics> {
-    const redis = await getRedis()
-
-    // Try to get cached metrics (old format)
-    const cachedData = await redis.hGetAll(`challenge:${challengeId}:metrics`)
-
-    if (cachedData && Object.keys(cachedData).length > 0) {
-      // Return cached metrics
-      return {
-        currentDay: parseInt(cachedData.currentDay),
-        streak: parseInt(cachedData.streak),
-        personalBest: parseInt(cachedData.personalBest),
-        totalPushups: parseInt(cachedData.totalPushups),
-        daysLogged: parseInt(cachedData.daysLogged),
-        daysMissed: parseInt(cachedData.daysMissed),
-        completionRate: parseInt(cachedData.completionRate),
-        calculatedAt: parseInt(cachedData.calculatedAt),
-      }
-    }
-
-    // Calculate using old method for backward compatibility
     const challenge = await this.getChallenge(challengeId)
     if (!challenge) {
       throw new Error('Challenge not found')
@@ -376,34 +344,6 @@ export class ChallengeRepository {
 
     const logs = await this.getAllLogs(challengeId)
     return calculateMetrics(challenge, logs)
-  }
-
-  /**
-   * Calculate metrics for a specific activity and cache them in Redis
-   * This is called after logging reps or when metrics are stale
-   */
-  async calculateAndCacheMetrics(
-    challengeId: string,
-    activity: string
-  ): Promise<ActivityMetrics> {
-    const redis = await getRedis()
-    const challenge = await this.getChallenge(challengeId)
-
-    if (!challenge) {
-      throw new Error('Challenge not found')
-    }
-
-    const logs = await this.getAllLogs(challengeId)
-    const metrics = calculateActivityMetrics(challenge, logs, activity)
-
-    // Cache in Redis
-    await redis.hSet(`challenge:${challengeId}:metrics:${activity}`, metrics as any)
-
-    // Set TTL to match challenge
-    const ttlSeconds = (challenge.duration + 30) * 24 * 60 * 60
-    await redis.expire(`challenge:${challengeId}:metrics:${activity}`, ttlSeconds)
-
-    return metrics
   }
 
   /**

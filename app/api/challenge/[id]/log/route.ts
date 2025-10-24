@@ -138,8 +138,8 @@ export async function POST(
           reps: log.reps,
         })
 
-        // Recalculate metrics for this activity
-        const metrics = await challengeRepository.calculateAndCacheMetrics(
+        // Get metrics for this activity
+        const metrics = await challengeRepository.getMetricsForActivity(
           challengeId,
           activity
         )

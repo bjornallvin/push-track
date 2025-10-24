@@ -38,10 +38,10 @@ export async function POST(
       )
     }
 
-    // Recalculate metrics for all activities
+    // Get metrics for all activities
     const recalculated: Record<string, any> = {}
     for (const activity of challenge.activities) {
-      const metrics = await challengeRepository.calculateAndCacheMetrics(
+      const metrics = await challengeRepository.getMetricsForActivity(
         challengeId,
         activity
       )
