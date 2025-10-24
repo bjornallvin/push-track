@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ForgotLinkForm } from '@/components/forgot-link-form'
+import { RecentChallenges } from '@/components/recent-challenges'
 
 export default function HomePage() {
   return (
@@ -19,6 +20,9 @@ export default function HomePage() {
             Challenge yourself with <span className="font-bold text-purple-600 dark:text-purple-400">daily maximum-effort exercises</span>. Choose your activities, track your progress, and watch your strength grow.
           </p>
         </div>
+
+        {/* NEW: Recent Challenges Section */}
+        <RecentChallenges />
 
         {/* CTA Card */}
         <Card className="border-2 border-purple-200 dark:border-purple-800 shadow-2xl shadow-purple-500/20 bg-gradient-to-br from-white to-purple-50/50 dark:from-gray-950 dark:to-purple-950/30">

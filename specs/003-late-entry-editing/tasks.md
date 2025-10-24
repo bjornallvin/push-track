@@ -22,9 +22,9 @@
 
 **Purpose**: Project initialization and validation
 
-- [X] T001 Validate existing project structure matches plan.md requirements
-- [X] T002 [P] Verify lucide-react icons are available (Edit2 icon needed)
-- [X] T003 [P] Verify date-fns is available for date manipulation
+- [ ] T001 Validate existing project structure matches plan.md requirements
+- [ ] T002 [P] Verify lucide-react icons are available (Edit2 icon needed)
+- [ ] T003 [P] Verify date-fns is available for date manipulation
 
 ---
 
@@ -34,9 +34,9 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [X] T004 Extend LogEntry type in lib/challenge/types.ts to add LogRepsRequest interface with optional date field
-- [X] T005 Extend Zod validation schema in lib/challenge/validation.ts to add optional date field with future-date validation
-- [X] T006 Add ChallengeDay interface in lib/challenge/types.ts for edit button logic (derived entity, no storage)
+- [ ] T004 Extend LogEntry type in lib/challenge/types.ts to add LogRepsRequest interface with optional date field
+- [ ] T005 Extend Zod validation schema in lib/challenge/validation.ts to add optional date field with future-date validation
+- [ ] T006 Add ChallengeDay interface in lib/challenge/types.ts for edit button logic (derived entity, no storage)
 
 **Checkpoint**: Type definitions and validation ready - user story implementation can now begin
 
@@ -52,10 +52,10 @@
 
 **Static UI with mock data - build these BEFORE backend integration**
 
-- [X] T007 [P] [US1] Create EditDayButton component in components/challenge/edit-day-button.tsx with static link and 44x44px touch target
-- [X] T008 [US1] Add EditDayButton rendering logic to ProgressChart component in components/challenge/progress-chart.tsx with mock date array (10 days)
-- [X] T009 [US1] Create edit page at app/challenge/[id]/edit/page.tsx with mock challenge data and ActivityLogger integration
-- [X] T010 [US1] Extend ActivityLogger component in components/challenge/activity-logger.tsx to accept targetDate and existingLogs props for pre-filling
+- [ ] T007 [P] [US1] Create EditDayButton component in components/challenge/edit-day-button.tsx with static link and 44x44px touch target
+- [ ] T008 [US1] Add EditDayButton rendering logic to ProgressChart component in components/challenge/progress-chart.tsx with mock date array (10 days)
+- [ ] T009 [US1] Create edit page at app/challenge/[id]/edit/page.tsx with mock challenge data and ActivityLogger integration
+- [ ] T010 [US1] Extend ActivityLogger component in components/challenge/activity-logger.tsx to accept targetDate and existingLogs props for pre-filling
 
 **Checkpoint**: Functional UI prototype with static data - ready for stakeholder demo and approval
 
@@ -63,12 +63,12 @@
 
 **Connect UI to real API and data**
 
-- [X] T011 [US1] Update repository.logReps method in lib/challenge/repository.ts to accept optional targetDate parameter
-- [X] T012 [US1] Extend API route in app/api/challenge/[id]/log/route.ts to parse optional date parameter and validate date range
-- [X] T013 [US1] Update API route to skip duplicate-check and completion-check when in edit mode (date parameter present)
-- [X] T014 [US1] Update ActivityLogger submit handler in components/challenge/activity-logger.tsx to include date in API request when targetDate provided
-- [X] T015 [US1] Replace mock data in edit page app/challenge/[id]/edit/page.tsx with real challenge and log fetching
-- [X] T016 [US1] Update ProgressChart in components/challenge/progress-chart.tsx to derive real dates from challenge and render edit buttons with isEditable logic
+- [ ] T011 [US1] Update repository.logReps method in lib/challenge/repository.ts to accept optional targetDate parameter
+- [ ] T012 [US1] Extend API route in app/api/challenge/[id]/log/route.ts to parse optional date parameter and validate date range
+- [ ] T013 [US1] Update API route to skip duplicate-check and completion-check when in edit mode (date parameter present)
+- [ ] T014 [US1] Update ActivityLogger submit handler in components/challenge/activity-logger.tsx to include date in API request when targetDate provided
+- [ ] T015 [US1] Replace mock data in edit page app/challenge/[id]/edit/page.tsx with real challenge and log fetching
+- [ ] T016 [US1] Update ProgressChart in components/challenge/progress-chart.tsx to derive real dates from challenge and render edit buttons with isEditable logic
 
 **Checkpoint**: User Story 1 is fully functional - users can edit any past day's data and see chart updates
 

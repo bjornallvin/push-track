@@ -1,5 +1,6 @@
 import { notFound, redirect } from 'next/navigation'
 import { Dashboard } from '@/components/challenge/dashboard'
+import { SaveToRecent } from '@/components/challenge/save-to-recent'
 
 async function getChallenge(id: string) {
   try {
@@ -39,11 +40,16 @@ export default async function ChallengePage({
   }
 
   return (
-    <main className="min-h-screen p-4 md:p-8">
-      <div className="mx-auto max-w-2xl">
-        <h1 className="mb-8 text-3xl font-bold">Challenge Tracker</h1>
-        <Dashboard {...challenge} challengeId={params.id} />
-      </div>
-    </main>
+    <>
+      {/* Invisible component to save to localStorage */}
+      <SaveToRecent challenge={challenge} />
+
+      <main className="min-h-screen p-4 md:p-8">
+        <div className="mx-auto max-w-2xl">
+          <h1 className="mb-8 text-3xl font-bold">Challenge Tracker</h1>
+          <Dashboard {...challenge} challengeId={params.id} />
+        </div>
+      </main>
+    </>
   )
 }
